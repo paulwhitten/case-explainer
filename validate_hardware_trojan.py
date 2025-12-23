@@ -18,6 +18,7 @@ import sys
 import os
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import cross_val_score, StratifiedKFold
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import time
@@ -32,13 +33,19 @@ TRAIN_CSV = f"{PIPELINE_DIR}/data/processed/train.csv"
 TEST_CSV = f"{PIPELINE_DIR}/data/processed/test.csv"
 
 def load_data():
-    """Load training and test data."""
+    """Load training and test data, split training into train/val."""
     print("Loading hardware trojan detection data...")
     
     # Load training data
     train_df = pd.read_csv(TRAIN_CSV)
-    X_train = train_df.iloc[:, :-1].values
-    y_train = train_df.iloc[:, -1].values.astype(int)
+    X_trainval = train_df.iloc[:, :-1].values
+    y_trainval = train_df.iloc[:, -1].values.astype(int)
+    
+    # Split training into train (80%) and validation (20%)
+    from sklearn.model_selection import train_test_split
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_trainval, y_trainval, test_size=0.2, random_state=42, stratify=y_trainval
+    )
     
     # Load test data
     test_df = pd.read_csv(TEST_CSV)
@@ -46,10 +53,12 @@ def load_data():
     y_test = test_df.iloc[:, -1].values.astype(int)
     
     print(f"\nDataset Statistics:")
-    print(f"  Training samples: {len(X_train):,}")
-    print(f"  Test samples: {len(X_test):,}")
+    print(f"  Training samples: {len(X_train):,} (64%)")
+    print(f"  Validation samples: {len(X_val):,} (16%)")
+    print(f"  Test samples: {len(X_test):,} (20%)")
     print(f"  Features: {X_train.shape[1]}")
     print(f"  Training class distribution: {np.bincount(y_train)}")
+    print(f"  Validation class distribution: {np.bincount(y_val)}")
     print(f"  Test class distribution: {np.bincount(y_test)}")
     
     # Calculate imbalance ratio
@@ -58,16 +67,43 @@ def load_data():
     imbalance = train_normal / train_trojan if train_trojan > 0 else float('inf')
     print(f"  Imbalance ratio (normal:trojan): {imbalance:.1f}:1")
     
-    return X_train, X_test, y_train, y_test
+    return X_train, X_val, X_test, y_train, y_val, y_test
 
-def train_classifier(X_train, y_train):
-    """Train RandomForest classifier."""
-    print("\nTraining RandomForest classifier...")
+def cross_validate_model(X_trainval, y_trainval):
+    """Perform cross-validation to assess model stability."""
+    print("\nPerforming 5-fold cross-validation...")
     
     clf = RandomForestClassifier(
         n_estimators=100,
-        max_depth=None,
-        class_weight='balanced',  # Handle imbalanced data
+        max_depth=15,              # Regularization
+        min_samples_split=10,
+        min_samples_leaf=4,
+        max_features='sqrt',
+        class_weight='balanced',
+        random_state=42,
+        n_jobs=-1
+    )
+    
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    cv_scores = cross_val_score(clf, X_trainval, y_trainval, cv=cv, scoring='accuracy')
+    
+    print(f"  CV Accuracy: {cv_scores.mean():.4f} ± {cv_scores.std():.4f}")
+    print(f"  Fold scores: {[f'{s:.4f}' for s in cv_scores]}")
+    print(f"  Min: {cv_scores.min():.4f}, Max: {cv_scores.max():.4f}")
+    
+    return cv_scores
+
+def train_classifier(X_train, y_train, X_val, y_val):
+    """Train RandomForest classifier with regularization."""
+    print("\nTraining RandomForest classifier with regularization...")
+    
+    clf = RandomForestClassifier(
+        n_estimators=100,
+        max_depth=15,              # Limit tree depth
+        min_samples_split=10,      # Require 10 samples to split
+        min_samples_leaf=4,        # Require 4 samples per leaf
+        max_features='sqrt',       # Use sqrt(n_features) per split
+        class_weight='balanced',   # Handle imbalanced data
         random_state=42,
         n_jobs=-1
     )
@@ -77,32 +113,55 @@ def train_classifier(X_train, y_train):
     train_time = time.time() - start_time
     
     print(f"  Training completed in {train_time:.2f} seconds")
+    print(f"  Hyperparameters: max_depth=15, min_samples_split=10, min_samples_leaf=4")
+    
+    # Evaluate on training and validation
+    train_pred = clf.predict(X_train)
+    train_acc = accuracy_score(y_train, train_pred)
+    
+    val_pred = clf.predict(X_val)
+    val_acc = accuracy_score(y_val, val_pred)
+    
+    print(f"  Training accuracy: {train_acc:.4f}")
+    print(f"  Validation accuracy: {val_acc:.4f}")
+    
+    # Check for overfitting
+    overfit_gap = train_acc - val_acc
+    if overfit_gap > 0.05:
+        print(f"  WARNING: Overfitting detected: {overfit_gap:.2%} gap between train and val")
+    else:
+        print(f"  Good generalization: {overfit_gap:.2%} gap between train and val")
     
     return clf
 
-def evaluate_classifier(clf, X_train, y_train, X_test, y_test):
-    """Evaluate classifier performance."""
-    print("\nEvaluating classifier...")
+def evaluate_classifier(clf, X_train, y_train, X_val, y_val, X_test, y_test):
+    """Evaluate classifier performance on all splits."""
+    print("\nEvaluating classifier on all data splits...")
     
     # Training accuracy
     train_pred = clf.predict(X_train)
     train_acc = accuracy_score(y_train, train_pred)
+    
+    # Validation accuracy
+    val_pred = clf.predict(X_val)
+    val_acc = accuracy_score(y_val, val_pred)
     
     # Test accuracy
     test_pred = clf.predict(X_test)
     test_acc = accuracy_score(y_test, test_pred)
     
     print(f"  Training accuracy: {train_acc:.4f}")
+    print(f"  Validation accuracy: {val_acc:.4f}")
     print(f"  Test accuracy: {test_acc:.4f}")
     
-    # Confusion matrix
+    # Confusion matrix (test set)
     cm = confusion_matrix(y_test, test_pred)
-    print(f"\nConfusion Matrix:")
+    print(f"\nTest Set Confusion Matrix:")
     print(f"  TN={cm[0,0]:,}  FP={cm[0,1]:,}")
     print(f"  FN={cm[1,0]:,}  TP={cm[1,1]:,}")
     
     # Per-class metrics
-    print("\nClassification Report:")
+    print("\nTest Set Classification Report:")
     print(classification_report(y_test, test_pred, target_names=['Normal', 'Trojan']))
     
     return test_pred
@@ -200,9 +259,9 @@ def validate_case_explainer(X_train, y_train, X_test, y_test, predictions, clf):
     
     diff = abs(avg_corr - 0.974) * 100
     if diff < 2.0:
-        print(f"✅ VALIDATED: Within 2% of paper results (diff={diff:.2f}%)")
+        print(f"VALIDATED: Within 2% of paper results (diff={diff:.2f}%)")
     else:
-        print(f"⚠️  DEVIATION: More than 2% difference (diff={diff:.2f}%)")
+        print(f"DEVIATION: More than 2% difference (diff={diff:.2f}%)")
     
     # Show example explanation
     print(f"\n{'='*70}")
@@ -224,16 +283,21 @@ def main():
     print("HARDWARE TROJAN DETECTION: CASE-EXPLAINER VALIDATION")
     print("="*70)
     
-    # Load data
-    X_train, X_test, y_train, y_test = load_data()
+    # Load data with train/val/test split
+    X_train, X_val, X_test, y_train, y_val, y_test = load_data()
     
-    # Train classifier
-    clf = train_classifier(X_train, y_train)
+    # Cross-validate to check stability
+    X_trainval = np.vstack([X_train, X_val])
+    y_trainval = np.hstack([y_train, y_val])
+    cv_scores = cross_validate_model(X_trainval, y_trainval)
     
-    # Evaluate classifier
-    predictions = evaluate_classifier(clf, X_train, y_train, X_test, y_test)
+    # Train classifier with regularization
+    clf = train_classifier(X_train, y_train, X_val, y_val)
     
-    # Validate case-explainer
+    # Evaluate classifier on all splits
+    predictions = evaluate_classifier(clf, X_train, y_train, X_val, y_val, X_test, y_test)
+    
+    # Validate case-explainer (on test set only)
     explanations = validate_case_explainer(
         X_train, y_train, X_test, y_test, predictions, clf
     )
@@ -241,6 +305,11 @@ def main():
     print(f"\n{'='*70}")
     print("VALIDATION COMPLETE")
     print("="*70)
+    print(f"\nSummary:")
+    print(f"  Cross-validation: {cv_scores.mean():.4f} ± {cv_scores.std():.4f}")
+    print(f"  Test accuracy: {accuracy_score(y_test, predictions):.4f}")
+    correspondences = [e.correspondence for e in explanations]
+    print(f"  Test correspondence: {np.mean(correspondences):.4f} ± {np.std(correspondences):.4f}")
 
 if __name__ == "__main__":
     main()
