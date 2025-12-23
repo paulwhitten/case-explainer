@@ -48,6 +48,7 @@ class CaseExplainer:
         algorithm: str = 'auto',
         scale_data: bool = True,
         class_weights: Optional[Dict[int, float]] = None,
+        distance_penalty: Union[str, float] = 'fixed',
         metadata: Optional[Dict[str, List]] = None,
         n_jobs: int = -1
     ):
@@ -65,6 +66,12 @@ class CaseExplainer:
             scale_data: Whether to standardize features (recommended: True)
             class_weights: Optional weights for each class in correspondence computation
                           e.g., {0: 1.0, 1: 2.0} to weight class 1 twice as much
+            distance_penalty: Distance penalty strategy (default: 'fixed')
+                            - 'fixed': Cubic penalty 1/(d+1)^3 (original)
+                            - 'adaptive': Dimension-adaptive (recommended for high-D)
+                            - 'linear', 'square', 'cubic': Fixed exponents
+                            - 'percentile': Percentile-based normalization
+                            - float: Custom exponent
             metadata: Optional dict with metadata for each training sample
                      e.g., {'sample_id': [...], 'source': [...], ...}
             n_jobs: Number of parallel jobs for k-NN search (-1 = all CPUs)
@@ -97,6 +104,7 @@ class CaseExplainer:
         self.algorithm = algorithm
         self.scale_data = scale_data
         self.class_weights = class_weights or {}
+        self.distance_penalty = distance_penalty
         self.metadata = metadata or {}
         self.n_jobs = n_jobs
         
@@ -207,13 +215,15 @@ class CaseExplainer:
             )
             neighbors.append(neighbor)
         
-        # Compute correspondence with optional class weighting
+        # Compute correspondence with optional class weighting and distance penalty
         neighbor_tuples = [(n.index, n.distance, n.label) for n in neighbors]
         correspondence, interpretation = compute_correspondence(
             neighbor_tuples,
             predicted_class,
             distance_weighted=distance_weighted,
-            class_weights=self.class_weights
+            class_weights=self.class_weights,
+            distance_penalty=self.distance_penalty,
+            n_features=self.n_features
         )
         
         # Create explanation
