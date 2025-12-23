@@ -185,7 +185,7 @@ explanation.plot()                  # Visualize (bar plot)
 |---------|---------------|------|------|
 | **Explanation Type** | Training precedents | Feature importance | Shapley values |
 | **Intuition** | "Similar to examples X, Y, Z" | "Feature A is important" | "Feature A contributes +0.3" |
-| **Speed** | Very Fast ⚡ | Fast | Slow |
+| **Speed** | Very Fast | Fast | Slow |
 | **Domain Expert Friendly** | Yes (concrete examples) | Moderate | No (math heavy) |
 | **Model-Agnostic** | Yes | Yes | Yes |
 
@@ -207,8 +207,8 @@ explanation.plot()                  # Visualize (bar plot)
 
 ### Phase 1: Multi-Domain Validation - IN PROGRESS
 - [x] Hardware trojan detection (validated in JETTA paper)
-- [ ] Medical diagnosis (UCI Breast Cancer)
-- [ ] Fraud detection (Credit Card Fraud)
+- [x] Medical diagnosis (UCI Breast Cancer)
+- [x] Fraud detection (Credit Card Fraud)
 - [ ] Benchmarking (time, memory, correspondence)
 
 ### Phase 2: Documentation & Polish - PLANNED
