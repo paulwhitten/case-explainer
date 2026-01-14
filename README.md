@@ -110,6 +110,26 @@ Results show excellent performance:
 - **Quality**: 87-100% correspondence across validated domains
 - **Scalability**: Tested up to 200k training samples
 
+### Documentation
+
+Full API reference with Sphinx:
+
+```bash
+# Build documentation
+cd docs
+make html
+
+# View documentation locally
+python -m http.server 8000 --directory docs/_build/html
+# Then open http://localhost:8000 in your browser
+```
+
+The documentation includes:
+- Complete API reference for all classes and functions
+- Usage examples and code snippets
+- Theory and mathematical foundations
+- Configuration guides and best practices
+
 ## Security & Privacy Considerations
 
 **IMPORTANT:** Case-based explanations expose actual training samples as evidence. This can leak sensitive information:
@@ -231,14 +251,14 @@ explanation.plot()                  # Visualize (bar plot)
 - [x] Metadata/provenance tracking
 - [x] Batch explanation support
 
-### Phase 1: Multi-Domain Validation - COMPLETE
+### Phase 1: Multi-Domain Validation
 - [x] Hardware trojan detection (validated in JETTA paper)
 - [x] Medical diagnosis (UCI Breast Cancer)
 - [x] Fraud detection (Credit Card Fraud)
 - [x] Benchmarking (time, memory, correspondence)
 
-### Phase 2: Documentation - PLANNED
-- [ ] API reference
+### Phase 2: Documentation - IN PROGRESS
+- [x] API reference
 - [ ] Tutorial notebooks (4 domains)
 - [ ] Comparison guide (vs LIME/SHAP)
 - [ ] Code coverage >90%
