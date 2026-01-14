@@ -3,22 +3,20 @@
 Validate case-explainer on hardware trojan detection dataset.
 
 This replicates the Method 2 (case-based) results from the JETTA paper,
-which achieved 97.4% correspondence on 56,959 samples.
+which achieved high correspondence on circuit trojan detection.
 
 Expected results:
-- Training samples: ~45,000
-- Test samples: ~11,000
-- Features: 5 (gate-level metrics)
-- Classes: 2 (trojan=1, normal=0)
-- Class imbalance: ~268:1 (normal:trojan)
-- Target correspondence: ~97.4%
+- Dataset: ~56,959 circuits
+- Features: 5 (circuit-level metrics: LGFi, ffi, ffo, PI, PO)
+- Classes: 2 (trojan=1, trojan-free=0)
+- Binary classification with class imbalance
 """
 
 import sys
 import os
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import cross_val_score, StratifiedKFold
+from sklearn.model_selection import cross_val_score, StratifiedKFold, train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import time
@@ -27,30 +25,33 @@ import time
 sys.path.insert(0, os.path.dirname(__file__))
 from case_explainer import CaseExplainer
 
-# Paths to pipeline data
-PIPELINE_DIR = "/home/pcw/devel/i9_developer/explainable_hw_trojan_detection_pipeline"
-TRAIN_CSV = f"{PIPELINE_DIR}/data/processed/train.csv"
-TEST_CSV = f"{PIPELINE_DIR}/data/processed/test.csv"
+# Path to local dataset (tracked with Git LFS)
+DATA_FILE = os.path.join(os.path.dirname(__file__), "assets/data/hardware_trojan.csv")
 
 def load_data():
-    """Load training and test data, split training into train/val."""
+    """Load hardware trojan dataset and create train/val/test splits."""
     print("Loading hardware trojan detection data...")
     
-    # Load training data
-    train_df = pd.read_csv(TRAIN_CSV)
-    X_trainval = train_df.iloc[:, :-1].values
-    y_trainval = train_df.iloc[:, -1].values.astype(int)
+    if not os.path.exists(DATA_FILE):
+        raise FileNotFoundError(f"Dataset not found at {DATA_FILE}")
     
-    # Split training into train (80%) and validation (20%)
-    from sklearn.model_selection import train_test_split
+    # Load full dataset
+    df = pd.read_csv(DATA_FILE)
+    X = df.iloc[:, :-1].values
+    y = df.iloc[:, -1].values.astype(int)
+    
+    # Split: 60% train, 10% val, 30% test
+    X_trainval, X_test, y_trainval, y_test = train_test_split(
+        X, y, test_size=0.3, random_state=42, stratify=y
+    )
     X_train, X_val, y_train, y_val = train_test_split(
-        X_trainval, y_trainval, test_size=0.2, random_state=42, stratify=y_trainval
+        X_trainval, y_trainval, test_size=0.143, random_state=42, stratify=y_trainval  # 0.143 * 0.7 ≈ 0.1
     )
     
     # Load test data
-    test_df = pd.read_csv(TEST_CSV)
-    X_test = test_df.iloc[:, :-1].values
-    y_test = test_df.iloc[:, -1].values.astype(int)
+    # test_df = pd.read_csv(TEST_CSV)
+    # X_test = test_df.iloc[:, :-1].values
+    # y_test = test_df.iloc[:, -1].values.astype(int)
     
     print(f"\nDataset Statistics:")
     print(f"  Training samples: {len(X_train):,} (64%)")

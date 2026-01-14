@@ -77,10 +77,12 @@ w(c) = Σ[1/(distance² + 1)] for neighbors with class c
 Correspondence = w(predicted_class) / Σ w(all_classes)
 ```
 
-**Interpretation:**
+**Example Interpretation Thresholds** (domain-dependent, not universal standards):
 - **High (≥85%)**: Strong agreement with training precedent
 - **Medium (70-85%)**: Moderate agreement
 - **Low (<70%)**: Weak agreement, prediction may be uncertain
+
+*Note: These thresholds are illustrative examples. Appropriate thresholds should be determined empirically for each specific domain and use case based on validation studies.*
 
 ### Indexing Strategies
 
@@ -106,11 +108,13 @@ python benchmark.py --no-mnist   # Skip MNIST (faster)
 python benchmark.py --help       # See all options
 ```
 
-Results show excellent performance:
+Results (single run on reference hardware):
 - **Speed**: 14-37 ms per explanation depending on dataset size
 - **Memory**: <1 MB to 131 MB (scales with data size and dimensionality)
-- **Quality**: 87-100% correspondence across validated domains
+- **Correspondence**: 87-100% neighbor agreement across validated domains
 - **Scalability**: Tested up to 200k training samples
+
+**Note on Correspondence**: This metric measures agreement between predictions and retrieved neighbors, not prediction accuracy or quality. High correspondence indicates consistency with training data patterns, not necessarily correct predictions.
 
 ### Documentation
 
@@ -210,40 +214,68 @@ explanation.plot()                  # Visualize (bar plot)
 
 ## Validated Domains
 
-**Hardware Trojan Detection** (56,959 samples, 10 features)
-- 99.9% correspondence across indexing methods
-- Demonstrates excellence on imbalanced security data
-- 25.7 ms/sample explanation time
+**Hardware Trojan Detection** (56,959 samples, 5 features)
+- 99.9% average correspondence across indexing methods
+- High neighbor agreement on imbalanced security data
+- 25.7 ms/sample explanation time (single run, reference hardware)
 
 **Credit Card Fraud Detection** (284,807 samples, 30 features)
-- 100% correspondence (perfect agreement with training precedent)
+- 100% average correspondence (complete agreement with retrieved neighbors)
 - Highly imbalanced dataset (268:1 normal:fraud ratio)
-- 36.4 ms/sample explanation time
+- 36.4 ms/sample explanation time (single run, reference hardware)
 
 **Medical Diagnosis - Breast Cancer** (569 samples, 30 features)
-- 93.3% correspondence
-- Correct predictions: 96.2% correspondence vs 47.3% for incorrect
-- 25.9 ms/sample explanation time
+- 93.3% average correspondence
+- Correct predictions: 96.2% correspondence vs 47.3% for incorrect predictions
+- 25.9 ms/sample explanation time (single run, reference hardware)
 
 **Also Validated On:**
 - Iris (92.7%), Wine (91.8%), Digits (94.9%), MNIST (87.5%)
 - See `benchmark.py` for full results across 7 datasets
 
-## Comparison to LIME/SHAP
+*Note: Correspondence measures neighbor agreement, not prediction quality. High correspondence with incorrect predictions indicates the model has learned incorrect patterns in the training data.*
 
-| Feature | Case-Explainer | LIME | SHAP |
-|---------|---------------|------|------|
-| **Explanation Type** | Training precedents | Feature importance | Shapley values |
-| **Intuition** | "Similar to examples X, Y, Z" | "Feature A is important" | "Feature A contributes +0.3" |
-| **Speed** | Very Fast | Fast | Slow |
-| **Domain Expert Friendly** | Yes (concrete examples) | Moderate | No (math heavy) |
-| **Model-Agnostic** | Yes | Yes | Yes |
+## When to Use Case-Based Explainability
 
-**When to use Case-Explainer:**
-- Domain experts need to verify predictions against known cases
-- Precedent-based reasoning is valued (medical, legal, security)
-- Fast explanations needed for real-time systems
-- Training data has provenance/metadata worth surfacing
+**Case-Explainer is well-suited for scenarios where:**
+- Domain experts need to verify predictions against known training cases
+- Precedent-based reasoning is valued (medical diagnosis, legal decisions, security analysis)
+- Concrete examples are more intuitive than feature importance scores
+- Training data has provenance or metadata worth surfacing to users
+- Fast explanation generation is needed for real-time or interactive systems
+
+**Alternative approaches (LIME, SHAP) may be preferable when:**
+- Feature contributions are more relevant than training precedents
+- Training data cannot be exposed due to privacy/security constraints
+- Model debugging requires understanding feature-level behavior
+
+*Note: No formal benchmarking comparison between case-explainer and LIME/SHAP has been conducted. The choice of explainability method should be based on domain requirements and use case constraints.*
+
+## Limitations
+
+**Privacy and Security**
+- Exposes actual training samples, which may contain sensitive information
+- Not suitable for sensitive data without additional privacy protection mechanisms
+- Privacy-preserving features are planned for future releases
+
+**Correspondence Metric**
+- Measures neighbor agreement, not prediction correctness or quality
+- High correspondence can occur with incorrect predictions if training data contains systematic errors
+- Thresholds for "high/medium/low" must be validated per domain
+
+**Performance Benchmarks**
+- Timing and memory results are from single runs on reference hardware
+- No statistical error bars or confidence intervals provided
+- Results may vary significantly on different hardware and with different parameters
+
+**Scalability**
+- Memory usage scales linearly with training set size
+- Very large datasets (>1M samples) may require approximate nearest neighbor methods (not yet implemented)
+
+**Interpretability**
+- Assumes users can meaningfully interpret feature values of retrieved neighbors
+- Multi-feature patterns may be difficult to assess without domain expertise
+- High-dimensional data may require dimensionality reduction for effective interpretation
 
 ## Development Status
 

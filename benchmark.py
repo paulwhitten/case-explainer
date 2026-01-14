@@ -156,23 +156,24 @@ class DatasetLoader:
     @staticmethod
     def load_hardware_trojan() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, List[str], str]:
         """Load Hardware Trojan dataset (very large real-world dataset)."""
-        pipeline_dir = "/home/pcw/devel/i9_developer/explainable_hw_trojan_detection_pipeline"
-        train_csv = f"{pipeline_dir}/data/processed/train.csv"
-        test_csv = f"{pipeline_dir}/data/processed/test.csv"
+        # Path to local dataset (tracked with Git LFS)
+        data_file = os.path.join(os.path.dirname(__file__), "assets/data/hardware_trojan.csv")
         
-        if not os.path.exists(train_csv) or not os.path.exists(test_csv):
-            print(f"  Warning: Hardware trojan data not found at {pipeline_dir}")
+        if not os.path.exists(data_file):
+            print(f"  Warning: Hardware trojan data not found at {data_file}")
             return None, None, None, None, None, None
         
-        train_df = pd.read_csv(train_csv)
-        test_df = pd.read_csv(test_csv)
+        # Load full dataset and split
+        df = pd.read_csv(data_file)
+        X = df.iloc[:, :-1].values
+        y = df.iloc[:, -1].values.astype(int)
         
-        X_train = train_df.iloc[:, :-1].values
-        y_train = train_df.iloc[:, -1].values.astype(int)
-        X_test = test_df.iloc[:, :-1].values
-        y_test = test_df.iloc[:, -1].values.astype(int)
+        # Split into train/test (70/30 split, stratified)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.3, random_state=42, stratify=y
+        )
         
-        feature_names = [f"metric_{i}" for i in range(X_train.shape[1])]
+        feature_names = list(df.columns[:-1])
         return X_train, X_test, y_train, y_test, feature_names, "Hardware Trojan"
 
 

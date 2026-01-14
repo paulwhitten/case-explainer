@@ -53,15 +53,20 @@ The correspondence score is:
 Interpretation
 """"""""""""""
 
-* **1.0 (100%)**: All neighbors have the same class as the prediction (perfect agreement)
+* **1.0 (100%)**: All neighbors have the same class as the prediction (complete neighbor agreement)
 * **0.5 (50%)**: Neighbors are equally split between classes (no agreement)
 * **0.0 (0%)**: All neighbors have different classes than the prediction (complete disagreement)
 
-**Practical Ranges:**
+**Important**: Correspondence measures neighbor agreement, not prediction correctness. High correspondence 
+can occur with incorrect predictions if the training data contains systematic errors or learned incorrect patterns.
 
-* **High (≥0.85)**: Strong agreement, high confidence in prediction
-* **Medium (0.70-0.85)**: Moderate agreement, reasonable confidence
-* **Low (<0.70)**: Weak agreement, uncertain prediction or unusual sample
+**Example Interpretation Thresholds** (domain-dependent, not universal standards):
+
+* **High (≥0.85)**: Strong agreement with retrieved neighbors
+* **Medium (0.70-0.85)**: Moderate agreement with retrieved neighbors
+* **Low (<0.70)**: Weak agreement, potentially unusual sample or inconsistent neighbors
+
+*Note: Appropriate thresholds should be determined empirically for each specific domain and use case.*
 
 Distance Weighting
 ^^^^^^^^^^^^^^^^^^
@@ -123,11 +128,11 @@ Understanding Correspondence Behavior
    import numpy as np
    from case_explainer.metrics import compute_correspondence
 
-   # Perfect agreement: all neighbors same class
+   # Complete agreement: all neighbors same class
    distances = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
    labels = np.array([1, 1, 1, 1, 1])
    corr = compute_correspondence(distances, labels, predicted_class=1)
-   print(f"Perfect agreement: {corr:.2%}")  # 100%
+   print(f"Complete neighbor agreement: {corr:.2%}")  # 100%
 
    # Complete disagreement: all neighbors different class
    labels = np.array([0, 0, 0, 0, 0])

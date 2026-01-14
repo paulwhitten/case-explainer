@@ -78,12 +78,16 @@ Installation
 Performance
 -----------
 
-Validated across multiple domains with excellent results:
+Validated across multiple domains (single runs on reference hardware):
 
-* **Hardware Trojan Detection**: 99.9% correspondence, 25.7 ms/sample
-* **Credit Card Fraud Detection**: 100% correspondence, 36.4 ms/sample
-* **Medical Diagnosis (Breast Cancer)**: 93.3% correspondence, 25.9 ms/sample
+* **Hardware Trojan Detection**: 99.9% average correspondence, 25.7 ms/sample
+* **Credit Card Fraud Detection**: 100% average correspondence, 36.4 ms/sample
+* **Medical Diagnosis (Breast Cancer)**: 93.3% average correspondence, 25.9 ms/sample
 * **Scalability**: Tested up to 200k training samples
+
+**Note on Correspondence**: This metric measures agreement between predictions and retrieved 
+neighbors, not prediction accuracy or quality. High correspondence indicates consistency with 
+training data patterns.
 
 Contents
 --------

@@ -135,8 +135,9 @@ dmypy.json
 *.swo
 *~
 
-# Data files
+# Data files (except assets folder - those are tracked with Git LFS)
 *.csv
+!assets/**/*.csv
 *.pkl
 *.pickle
 *.h5
