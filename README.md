@@ -2,9 +2,11 @@
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
+[![Documentation](https://img.shields.io/badge/docs-online-blue.svg)](https://paulwhitten.github.io/case-explainer/)
 
 Provides model-agnostic explanations through training set precedent and nearest neighbor correspondence.
+
+**[Read the full documentation](https://paulwhitten.github.io/case-explainer/)**
 
 ## What is Case-Based Explainability?
 
@@ -112,7 +114,9 @@ Results show excellent performance:
 
 ### Documentation
 
-Full API reference with Sphinx:
+**[View full API documentation online](https://paulwhitten.github.io/case-explainer/)**
+
+Build and view documentation locally:
 
 ```bash
 # Build documentation
@@ -120,7 +124,7 @@ cd docs
 make html
 
 # View documentation locally
-python -m http.server 8000 --directory docs/_build/html
+python3 -m http.server 8000 --directory docs/_build/html
 # Then open http://localhost:8000 in your browser
 ```
 
