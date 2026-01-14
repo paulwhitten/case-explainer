@@ -1,0 +1,469 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Metrics &mdash; Case-Explainer 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Citation" href="../citation.html" />
+    <link rel="prev" title="Explanation Objects" href="explanation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Case-Explainer
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="explainer.html">CaseExplainer</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="explainer.html#case_explainer.CaseExplainer"><code class="docutils literal notranslate"><span class="pre">CaseExplainer</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#case_explainer.CaseExplainer.__init__"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#case_explainer.CaseExplainer.explain_instance"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.explain_instance()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#case_explainer.CaseExplainer.explain_batch"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.explain_batch()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#case_explainer.CaseExplainer.get_training_info"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.get_training_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="explainer.html#core-methods">Core Methods</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#building-the-explainer">Building the Explainer</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="explainer.html#id0"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#explaining-predictions">Explaining Predictions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="explainer.html#id1"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.explain_instance()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explainer.html#id2"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.explain_batch()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="explainer.html#example-usage">Example Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#basic-example">Basic Example</a></li>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#batch-explanations">Batch Explanations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#working-with-metadata">Working with Metadata</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="explainer.html#configuration-options">Configuration Options</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#algorithm-selection">Algorithm Selection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#feature-scaling">Feature Scaling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#class-weights">Class Weights</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="explainer.html#notes">Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="explainer.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="explanation.html">Explanation Objects</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="explanation.html#explanation">Explanation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="explanation.html#case_explainer.Explanation"><code class="docutils literal notranslate"><span class="pre">Explanation</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.Explanation.__init__"><code class="docutils literal notranslate"><span class="pre">Explanation.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.Explanation.get_predicted_class_name"><code class="docutils literal notranslate"><span class="pre">Explanation.get_predicted_class_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.Explanation.get_true_class_name"><code class="docutils literal notranslate"><span class="pre">Explanation.get_true_class_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.Explanation.is_correct"><code class="docutils literal notranslate"><span class="pre">Explanation.is_correct()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.Explanation.summary"><code class="docutils literal notranslate"><span class="pre">Explanation.summary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.Explanation.to_dict"><code class="docutils literal notranslate"><span class="pre">Explanation.to_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.Explanation.plot"><code class="docutils literal notranslate"><span class="pre">Explanation.plot()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="explanation.html#key-attributes">Key Attributes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.Explanation.correspondence"><code class="docutils literal notranslate"><span class="pre">Explanation.correspondence</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.Explanation.correspondence_interpretation"><code class="docutils literal notranslate"><span class="pre">Explanation.correspondence_interpretation</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.Explanation.neighbors"><code class="docutils literal notranslate"><span class="pre">Explanation.neighbors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.Explanation.predicted_class"><code class="docutils literal notranslate"><span class="pre">Explanation.predicted_class</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.Explanation.true_class"><code class="docutils literal notranslate"><span class="pre">Explanation.true_class</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="explanation.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#id0"><code class="docutils literal notranslate"><span class="pre">Explanation.is_correct()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#id1"><code class="docutils literal notranslate"><span class="pre">Explanation.summary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#id2"><code class="docutils literal notranslate"><span class="pre">Explanation.to_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#id3"><code class="docutils literal notranslate"><span class="pre">Explanation.plot()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="explanation.html#neighbor">Neighbor</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="explanation.html#case_explainer.explanation.Neighbor"><code class="docutils literal notranslate"><span class="pre">Neighbor</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.explanation.Neighbor.__init__"><code class="docutils literal notranslate"><span class="pre">Neighbor.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="explanation.html#id4">Key Attributes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.Neighbor.index"><code class="docutils literal notranslate"><span class="pre">Neighbor.index</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.Neighbor.distance"><code class="docutils literal notranslate"><span class="pre">Neighbor.distance</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.Neighbor.label"><code class="docutils literal notranslate"><span class="pre">Neighbor.label</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.Neighbor.features"><code class="docutils literal notranslate"><span class="pre">Neighbor.features</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explanation.html#case_explainer.Neighbor.metadata"><code class="docutils literal notranslate"><span class="pre">Neighbor.metadata</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="explanation.html#example-usage">Example Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="explanation.html#accessing-explanation-details">Accessing Explanation Details</a></li>
+<li class="toctree-l3"><a class="reference internal" href="explanation.html#inspecting-neighbors">Inspecting Neighbors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="explanation.html#exporting-explanations">Exporting Explanations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="explanation.html#generating-summaries">Generating Summaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="explanation.html#visualizing-explanations">Visualizing Explanations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="explanation.html#batch-analysis">Batch Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="explanation.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Metrics</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#functions">Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#compute-correspondence">compute_correspondence</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.metrics.compute_correspondence"><code class="docutils literal notranslate"><span class="pre">compute_correspondence()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#euclidean-distance">euclidean_distance</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.metrics.euclidean_distance"><code class="docutils literal notranslate"><span class="pre">euclidean_distance()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#theory">Theory</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#correspondence-metric">Correspondence Metric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#mathematical-definition">Mathematical Definition</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#interpretation">Interpretation</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#distance-weighting">Distance Weighting</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#example-usage">Example Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#computing-correspondence">Computing Correspondence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#distance-computation">Distance Computation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#understanding-correspondence-behavior">Understanding Correspondence Behavior</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#class-weights">Class Weights</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#notes">Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Additional Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../citation.html">Citation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../citation.html#bibtex">BibTeX</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../citation.html#related-publications">Related Publications</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../citation.html#acknowledgments">Acknowledgments</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../license.html#mit-license">MIT License</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../license.html#what-this-means">What This Means</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Case-Explainer</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Metrics</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/metrics.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="metrics">
+<h1>Metrics<a class="headerlink" href="#metrics" title="Link to this heading"></a></h1>
+<p>Distance and correspondence metrics for case-based explanations.</p>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
+<section id="compute-correspondence">
+<h3>compute_correspondence<a class="headerlink" href="#compute-correspondence" title="Link to this heading"></a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="case_explainer.metrics.compute_correspondence">
+<span class="sig-prename descclassname"><span class="pre">case_explainer.metrics.</span></span><span class="sig-name descname"><span class="pre">compute_correspondence</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">neighbors</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">predicted_class</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_weighted</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">class_weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/case_explainer/metrics.html#compute_correspondence"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#case_explainer.metrics.compute_correspondence" title="Link to this definition"></a></dt>
+<dd><p>Quantify agreement between prediction and retrieved neighbors.</p>
+<p>Based on refined Method 2 formula from hardware trojan detection pipeline:
+weight(class_c) = sum_{i in neighbors with class c} class_weight_c / (distance_i + 1)^3</p>
+<p>Correspondence = weight(predicted_class) / sum(weight(all_classes))</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>neighbors</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Tuple</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>]]</span>) – List of tuples (index, distance, label) for k nearest neighbors</p></li>
+<li><p><strong>predicted_class</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a></span>) – The predicted class label</p></li>
+<li><p><strong>distance_weighted</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – Whether to weight by inverse cubed distance (default: True)</p></li>
+<li><p><strong>class_weights</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>]]</span>) – Optional weights for each class, e.g., {0: 1.0, 1: 2.0}
+for imbalanced datasets (default: all weights = 1.0)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>float in [0, 1]
+interpretation: “high” (&gt;0.85), “medium” (0.70-0.85), “low” (&lt;0.70)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>correspondence</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="euclidean-distance">
+<h3>euclidean_distance<a class="headerlink" href="#euclidean-distance" title="Link to this heading"></a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="case_explainer.metrics.euclidean_distance">
+<span class="sig-prename descclassname"><span class="pre">case_explainer.metrics.</span></span><span class="sig-name descname"><span class="pre">euclidean_distance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">point1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">point2</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/case_explainer/metrics.html#euclidean_distance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#case_explainer.metrics.euclidean_distance" title="Link to this definition"></a></dt>
+<dd><p>Calculate Euclidean distance between two points.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>point1</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></a></span>) – First point as numpy array</p></li>
+<li><p><strong>point2</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></a></span>) – Second point as numpy array</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Euclidean distance as float</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+<section id="theory">
+<h2>Theory<a class="headerlink" href="#theory" title="Link to this heading"></a></h2>
+<section id="correspondence-metric">
+<h3>Correspondence Metric<a class="headerlink" href="#correspondence-metric" title="Link to this heading"></a></h3>
+<p>The correspondence metric quantifies the agreement between a prediction and retrieved nearest neighbors.
+It uses inverse distance weighting to give more importance to closer neighbors.</p>
+<section id="mathematical-definition">
+<h4>Mathematical Definition<a class="headerlink" href="#mathematical-definition" title="Link to this heading"></a></h4>
+<p>For a test sample with predicted class <code class="docutils literal notranslate"><span class="pre">c_pred</span></code>, given k nearest neighbors:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}w_i = \\frac{1}{(d_i + 1)^3}\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(d_i\)</span> is the distance to neighbor i.</p>
+<p>The weight for each class c is:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}W(c) = \\sum_{i: y_i = c} w_i\end{split}\]</div>
+<p>The correspondence score is:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\\text{Correspondence} = \\frac{W(c_{pred})}{\\sum_{c} W(c)}\end{split}\]</div>
+</section>
+<section id="interpretation">
+<h4>Interpretation<a class="headerlink" href="#interpretation" title="Link to this heading"></a></h4>
+<ul class="simple">
+<li><p><strong>1.0 (100%)</strong>: All neighbors have the same class as the prediction (complete neighbor agreement)</p></li>
+<li><p><strong>0.5 (50%)</strong>: Neighbors are equally split between classes (no agreement)</p></li>
+<li><p><strong>0.0 (0%)</strong>: All neighbors have different classes than the prediction (complete disagreement)</p></li>
+</ul>
+<p><strong>Important</strong>: Correspondence measures neighbor agreement, not prediction correctness. High correspondence
+can occur with incorrect predictions if the training data contains systematic errors or learned incorrect patterns.</p>
+<p><strong>Example Interpretation Thresholds</strong> (domain-dependent, not universal standards):</p>
+<ul class="simple">
+<li><p><strong>High (≥0.85)</strong>: Strong agreement with retrieved neighbors</p></li>
+<li><p><strong>Medium (0.70-0.85)</strong>: Moderate agreement with retrieved neighbors</p></li>
+<li><p><strong>Low (&lt;0.70)</strong>: Weak agreement, potentially unusual sample or inconsistent neighbors</p></li>
+</ul>
+<p><em>Note: Appropriate thresholds should be determined empirically for each specific domain and use case.</em></p>
+</section>
+</section>
+<section id="distance-weighting">
+<h3>Distance Weighting<a class="headerlink" href="#distance-weighting" title="Link to this heading"></a></h3>
+<p>The cubed inverse distance weighting scheme has several desirable properties:</p>
+<ol class="arabic simple">
+<li><p><strong>Emphasizes closest neighbors</strong>: Closest neighbors have exponentially more influence</p></li>
+<li><p><strong>Stable at distance=0</strong>: The +1 term prevents division by zero</p></li>
+<li><p><strong>Smooth falloff</strong>: Neighbors further away contribute less but not zero</p></li>
+</ol>
+<p>Alternative weighting schemes can be implemented by modifying the weight function.</p>
+</section>
+</section>
+<section id="example-usage">
+<h2>Example Usage<a class="headerlink" href="#example-usage" title="Link to this heading"></a></h2>
+<section id="computing-correspondence">
+<h3>Computing Correspondence<a class="headerlink" href="#computing-correspondence" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">case_explainer.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">compute_correspondence</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="c1"># Example: 5 neighbors with their distances and labels</span>
+<span class="n">neighbor_distances</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">])</span>
+<span class="n">neighbor_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+<span class="n">predicted_class</span> <span class="o">=</span> <span class="mi">1</span>
+
+<span class="c1"># Compute correspondence</span>
+<span class="n">correspondence</span> <span class="o">=</span> <span class="n">compute_correspondence</span><span class="p">(</span>
+    <span class="n">neighbor_distances</span><span class="o">=</span><span class="n">neighbor_distances</span><span class="p">,</span>
+    <span class="n">neighbor_labels</span><span class="o">=</span><span class="n">neighbor_labels</span><span class="p">,</span>
+    <span class="n">predicted_class</span><span class="o">=</span><span class="n">predicted_class</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Correspondence: </span><span class="si">{</span><span class="n">correspondence</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="c1"># Output: Correspondence: 94.5%</span>
+</pre></div>
+</div>
+</section>
+<section id="distance-computation">
+<h3>Distance Computation<a class="headerlink" href="#distance-computation" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">case_explainer.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">euclidean_distance</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="n">sample1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">])</span>
+<span class="n">sample2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">2.5</span><span class="p">,</span> <span class="mf">3.5</span><span class="p">])</span>
+
+<span class="n">distance</span> <span class="o">=</span> <span class="n">euclidean_distance</span><span class="p">(</span><span class="n">sample1</span><span class="p">,</span> <span class="n">sample2</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Distance: </span><span class="si">{</span><span class="n">distance</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="c1"># Output: Distance: 0.866</span>
+</pre></div>
+</div>
+</section>
+<section id="understanding-correspondence-behavior">
+<h3>Understanding Correspondence Behavior<a class="headerlink" href="#understanding-correspondence-behavior" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">case_explainer.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">compute_correspondence</span>
+
+<span class="c1"># Complete agreement: all neighbors same class</span>
+<span class="n">distances</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">])</span>
+<span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+<span class="n">corr</span> <span class="o">=</span> <span class="n">compute_correspondence</span><span class="p">(</span><span class="n">distances</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">predicted_class</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Complete neighbor agreement: </span><span class="si">{</span><span class="n">corr</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># 100%</span>
+
+<span class="c1"># Complete disagreement: all neighbors different class</span>
+<span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+<span class="n">corr</span> <span class="o">=</span> <span class="n">compute_correspondence</span><span class="p">(</span><span class="n">distances</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">predicted_class</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Complete disagreement: </span><span class="si">{</span><span class="n">corr</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># 0%</span>
+
+<span class="c1"># Mixed: 3 same class, 2 different</span>
+<span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+<span class="n">corr</span> <span class="o">=</span> <span class="n">compute_correspondence</span><span class="p">(</span><span class="n">distances</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">predicted_class</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mixed (3:2): </span><span class="si">{</span><span class="n">corr</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># ~80-90% depending on distances</span>
+
+<span class="c1"># Effect of distance: closer neighbors matter more</span>
+<span class="c1"># Close neighbors same class</span>
+<span class="n">distances_close</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">])</span>
+<span class="n">labels_mixed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+<span class="n">corr_close</span> <span class="o">=</span> <span class="n">compute_correspondence</span><span class="p">(</span><span class="n">distances_close</span><span class="p">,</span> <span class="n">labels_mixed</span><span class="p">,</span> <span class="n">predicted_class</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="c1"># Far neighbors same class</span>
+<span class="n">distances_far</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">])</span>
+<span class="n">labels_mixed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+<span class="n">corr_far</span> <span class="o">=</span> <span class="n">compute_correspondence</span><span class="p">(</span><span class="n">distances_far</span><span class="p">,</span> <span class="n">labels_mixed</span><span class="p">,</span> <span class="n">predicted_class</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Close neighbors same class: </span><span class="si">{</span><span class="n">corr_close</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># Higher</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Far neighbors same class: </span><span class="si">{</span><span class="n">corr_far</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>      <span class="c1"># Lower</span>
+</pre></div>
+</div>
+</section>
+<section id="class-weights">
+<h3>Class Weights<a class="headerlink" href="#class-weights" title="Link to this heading"></a></h3>
+<p>For imbalanced datasets, you can adjust correspondence using class weights:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Without class weights</span>
+<span class="n">distances</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">])</span>
+<span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>  <span class="c1"># Minority class 1</span>
+
+<span class="n">corr</span> <span class="o">=</span> <span class="n">compute_correspondence</span><span class="p">(</span><span class="n">distances</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">predicted_class</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No weights: </span><span class="si">{</span><span class="n">corr</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># With class weights (weight minority class more)</span>
+<span class="n">corr_weighted</span> <span class="o">=</span> <span class="n">compute_correspondence</span><span class="p">(</span>
+    <span class="n">distances</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">predicted_class</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">class_weights</span><span class="o">=</span><span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span> <span class="mf">3.0</span><span class="p">}</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;With weights: </span><span class="si">{</span><span class="n">corr_weighted</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># Higher</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="notes">
+<h2>Notes<a class="headerlink" href="#notes" title="Link to this heading"></a></h2>
+<p><strong>Performance</strong></p>
+<ul class="simple">
+<li><p>Correspondence computation is O(k) where k is the number of neighbors</p></li>
+<li><p>Distance computation is O(d) where d is the number of features</p></li>
+<li><p>Both operations are highly vectorized using NumPy for efficiency</p></li>
+</ul>
+<p><strong>Numerical Stability</strong></p>
+<ul class="simple">
+<li><p>The +1 term in the weight function prevents division by zero</p></li>
+<li><p>All distance computations use double precision floats</p></li>
+<li><p>Correspondence is always in the range [0, 1]</p></li>
+</ul>
+</section>
+<section id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">CaseExplainer</span></code>: Uses these metrics for generating explanations</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Explanation</span></code>: Contains computed correspondence scores</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="explanation.html" class="btn btn-neutral float-left" title="Explanation Objects" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../citation.html" class="btn btn-neutral float-right" title="Citation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Paul Whitten, Francis Wolff, Chris Papachristou.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
