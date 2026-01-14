@@ -295,7 +295,7 @@ explanation.plot()                  # Visualize (bar plot)
 
 ### Phase 2: Documentation - IN PROGRESS
 - [x] API reference
-- [ ] Tutorial notebooks (4 domains)
+- [x] Tutorial notebooks (4 domains)
 - [ ] Comparison guide (vs LIME/SHAP)
 - [ ] Code coverage >90%
 
