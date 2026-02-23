@@ -57,7 +57,7 @@ explainer = CaseExplainer(
     X_train=X_train,
     y_train=y_train,
     feature_names=['sepal_len', 'sepal_width', 'petal_len', 'petal_width'],
-    index_method='kd_tree'
+    algorithm='kd_tree'
 )
 
 # Explain a prediction
@@ -97,6 +97,15 @@ See `quickstart.py` for a complete working example:
 ```bash
 python quickstart.py
 ```
+
+### Tutorial Notebooks
+
+Interactive Jupyter notebooks for each validated domain:
+
+- [Iris Classification](notebooks/01_iris_tutorial.ipynb) - Introductory multi-class example
+- [Breast Cancer Diagnosis](notebooks/02_breast_cancer_tutorial.ipynb) - Medical diagnosis domain
+- [Fraud Detection](notebooks/03_fraud_detection_tutorial.ipynb) - Financial security with extreme class imbalance
+- [Hardware Trojan Detection](notebooks/04_hardware_trojan_tutorial.ipynb) - Large-scale security domain
 
 ### Benchmarking
 
@@ -170,7 +179,7 @@ explainer = CaseExplainer(
     y_train,                # Training labels
     feature_names=None,     # Optional feature names
     class_names=None,       # Optional class names {0: 'cat', 1: 'dog'}
-    index_method='kd_tree', # Indexing strategy
+    algorithm='kd_tree',    # Indexing strategy
     scale_data=True,        # Standardize features
     metadata=None           # Optional provenance data
 )
@@ -215,7 +224,7 @@ explanation.plot()                  # Visualize (bar plot)
 ## Validated Domains
 
 **Hardware Trojan Detection** (56,959 samples, 5 features)
-- 99.9% average correspondence across indexing methods
+- 99.3% average correspondence across indexing methods
 - High neighbor agreement on imbalanced security data
 - 25.7 ms/sample explanation time (single run, reference hardware)
 
@@ -249,7 +258,18 @@ explanation.plot()                  # Visualize (bar plot)
 - Training data cannot be exposed due to privacy/security constraints
 - Model debugging requires understanding feature-level behavior
 
-*Note: No formal benchmarking comparison between case-explainer and LIME/SHAP has been conducted. The choice of explainability method should be based on domain requirements and use case constraints.*
+### Comparison with LIME and SHAP
+
+| Aspect | Case-Explainer | LIME | SHAP |
+|--------|---------------|------|------|
+| Explanation type | Training precedents (similar cases) | Local surrogate model (feature importance) | Shapley values (feature importance) |
+| Output | k nearest neighbors + correspondence score | Per-feature importance for one prediction | Per-feature importance (local and global) |
+| Privacy risk | High -- exposes actual training samples | Low -- uses synthetic perturbations | Low -- no sample exposure |
+| Speed (pipeline, HW trojan) | ~13 ms/sample | ~25 ms/sample | ~1 ms/sample (TreeSHAP) |
+| Model-agnostic | Yes | Yes | Yes (KernelSHAP); tree-specific variants are faster |
+| Best for | Precedent-based reasoning, domain expert verification | Local feature contributions, model debugging | Global + local feature analysis, theoretical guarantees |
+
+*Timing from the hardware trojan detection pipeline (XGBoost classifier, 5 features, ~57k samples). SHAP uses TreeSHAP which exploits tree structure for speed; KernelSHAP (model-agnostic) is substantially slower. LIME and Case-Explainer speeds are model-agnostic. Results will vary with dataset size, dimensionality, and hardware.*
 
 ## Limitations
 
@@ -296,7 +316,7 @@ explanation.plot()                  # Visualize (bar plot)
 ### Phase 2: Documentation - IN PROGRESS
 - [x] API reference
 - [x] Tutorial notebooks (4 domains)
-- [ ] Comparison guide (vs LIME/SHAP)
+- [x] Comparison guide (vs LIME/SHAP)
 - [ ] Code coverage >90%
 
 ### Phase 4: Release & Distribution - PLANNED
