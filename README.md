@@ -32,8 +32,8 @@ You get: *"This sample is classified as X because it resembles these 5 training 
 cd case-explainer
 pip install -e .
 
-# Dependencies
-pip install numpy scipy scikit-learn matplotlib pandas
+# With development/test dependencies (pytest, pytest-cov, etc.)
+pip install -e ".[dev]"
 ```
 
 ## Quick Start
@@ -317,7 +317,7 @@ explanation.plot()                  # Visualize (bar plot)
 - [x] API reference
 - [x] Tutorial notebooks (4 domains)
 - [x] Comparison guide (vs LIME/SHAP)
-- [ ] Code coverage >90%
+- [x] Code coverage >90%
 
 ### Phase 4: Release & Distribution - PLANNED
 - [ ] PyPI package
