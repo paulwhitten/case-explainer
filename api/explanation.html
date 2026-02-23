@@ -1,0 +1,626 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Explanation Objects &mdash; Case-Explainer 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Metrics" href="metrics.html" />
+    <link rel="prev" title="CaseExplainer" href="explainer.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Case-Explainer
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="explainer.html">CaseExplainer</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="explainer.html#case_explainer.CaseExplainer"><code class="docutils literal notranslate"><span class="pre">CaseExplainer</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#case_explainer.CaseExplainer.__init__"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#case_explainer.CaseExplainer.explain_instance"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.explain_instance()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#case_explainer.CaseExplainer.explain_batch"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.explain_batch()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#case_explainer.CaseExplainer.get_training_info"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.get_training_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="explainer.html#core-methods">Core Methods</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#building-the-explainer">Building the Explainer</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="explainer.html#id0"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#explaining-predictions">Explaining Predictions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="explainer.html#id1"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.explain_instance()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="explainer.html#id2"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.explain_batch()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="explainer.html#example-usage">Example Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#basic-example">Basic Example</a></li>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#batch-explanations">Batch Explanations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#working-with-metadata">Working with Metadata</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="explainer.html#configuration-options">Configuration Options</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#algorithm-selection">Algorithm Selection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#feature-scaling">Feature Scaling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="explainer.html#class-weights">Class Weights</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="explainer.html#notes">Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="explainer.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Explanation Objects</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#explanation">Explanation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#case_explainer.Explanation"><code class="docutils literal notranslate"><span class="pre">Explanation</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.Explanation.__init__"><code class="docutils literal notranslate"><span class="pre">Explanation.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.Explanation.get_predicted_class_name"><code class="docutils literal notranslate"><span class="pre">Explanation.get_predicted_class_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.Explanation.get_true_class_name"><code class="docutils literal notranslate"><span class="pre">Explanation.get_true_class_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.Explanation.is_correct"><code class="docutils literal notranslate"><span class="pre">Explanation.is_correct()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.Explanation.summary"><code class="docutils literal notranslate"><span class="pre">Explanation.summary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.Explanation.to_dict"><code class="docutils literal notranslate"><span class="pre">Explanation.to_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.Explanation.plot"><code class="docutils literal notranslate"><span class="pre">Explanation.plot()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#key-attributes">Key Attributes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.Explanation.correspondence"><code class="docutils literal notranslate"><span class="pre">Explanation.correspondence</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.Explanation.correspondence_interpretation"><code class="docutils literal notranslate"><span class="pre">Explanation.correspondence_interpretation</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.Explanation.neighbors"><code class="docutils literal notranslate"><span class="pre">Explanation.neighbors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.Explanation.predicted_class"><code class="docutils literal notranslate"><span class="pre">Explanation.predicted_class</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.Explanation.true_class"><code class="docutils literal notranslate"><span class="pre">Explanation.true_class</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id0"><code class="docutils literal notranslate"><span class="pre">Explanation.is_correct()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id1"><code class="docutils literal notranslate"><span class="pre">Explanation.summary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id2"><code class="docutils literal notranslate"><span class="pre">Explanation.to_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id3"><code class="docutils literal notranslate"><span class="pre">Explanation.plot()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#neighbor">Neighbor</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#case_explainer.explanation.Neighbor"><code class="docutils literal notranslate"><span class="pre">Neighbor</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.explanation.Neighbor.__init__"><code class="docutils literal notranslate"><span class="pre">Neighbor.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">Key Attributes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.Neighbor.index"><code class="docutils literal notranslate"><span class="pre">Neighbor.index</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.Neighbor.distance"><code class="docutils literal notranslate"><span class="pre">Neighbor.distance</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.Neighbor.label"><code class="docutils literal notranslate"><span class="pre">Neighbor.label</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.Neighbor.features"><code class="docutils literal notranslate"><span class="pre">Neighbor.features</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#case_explainer.Neighbor.metadata"><code class="docutils literal notranslate"><span class="pre">Neighbor.metadata</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#example-usage">Example Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#accessing-explanation-details">Accessing Explanation Details</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#inspecting-neighbors">Inspecting Neighbors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#exporting-explanations">Exporting Explanations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generating-summaries">Generating Summaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#visualizing-explanations">Visualizing Explanations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#batch-analysis">Batch Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="metrics.html">Metrics</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="metrics.html#functions">Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#compute-correspondence">compute_correspondence</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="metrics.html#case_explainer.metrics.compute_correspondence"><code class="docutils literal notranslate"><span class="pre">compute_correspondence()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#euclidean-distance">euclidean_distance</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="metrics.html#case_explainer.metrics.euclidean_distance"><code class="docutils literal notranslate"><span class="pre">euclidean_distance()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="metrics.html#theory">Theory</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#correspondence-metric">Correspondence Metric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="metrics.html#mathematical-definition">Mathematical Definition</a></li>
+<li class="toctree-l4"><a class="reference internal" href="metrics.html#interpretation">Interpretation</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#distance-weighting">Distance Weighting</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="metrics.html#example-usage">Example Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#computing-correspondence">Computing Correspondence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#distance-computation">Distance Computation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#understanding-correspondence-behavior">Understanding Correspondence Behavior</a></li>
+<li class="toctree-l3"><a class="reference internal" href="metrics.html#class-weights">Class Weights</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="metrics.html#notes">Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="metrics.html#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Additional Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../citation.html">Citation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../citation.html#bibtex">BibTeX</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../citation.html#related-publications">Related Publications</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../citation.html#acknowledgments">Acknowledgments</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../license.html#mit-license">MIT License</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../license.html#what-this-means">What This Means</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Case-Explainer</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Explanation Objects</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/explanation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="explanation-objects">
+<h1>Explanation Objects<a class="headerlink" href="#explanation-objects" title="Link to this heading"></a></h1>
+<p>Classes for representing and visualizing explanations.</p>
+<section id="explanation">
+<h2>Explanation<a class="headerlink" href="#explanation" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="case_explainer.Explanation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">case_explainer.</span></span><span class="sig-name descname"><span class="pre">Explanation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">test_sample</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neighbors</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">predicted_class</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">true_class</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">correspondence</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">correspondence_interpretation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">class_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/case_explainer/explanation.html#Explanation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#case_explainer.Explanation" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Explanation object containing case-based explanation details.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="case_explainer.Explanation.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">test_sample</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neighbors</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">predicted_class</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">true_class</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">correspondence</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">correspondence_interpretation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">class_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/case_explainer/explanation.html#Explanation.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#case_explainer.Explanation.__init__" title="Link to this definition"></a></dt>
+<dd><p>Initialize explanation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>test_sample</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></a></span>) – The test sample being explained</p></li>
+<li><p><strong>test_index</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>]</span>) – Index in test set (if applicable)</p></li>
+<li><p><strong>neighbors</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></a>[<a class="reference internal" href="#case_explainer.explanation.Neighbor" title="case_explainer.explanation.Neighbor"><code class="xref py py-class docutils literal notranslate"><span class="pre">Neighbor</span></code></a>]</span>) – List of Neighbor objects</p></li>
+<li><p><strong>predicted_class</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a></span>) – Predicted class label</p></li>
+<li><p><strong>true_class</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>]</span>) – True class label (if available)</p></li>
+<li><p><strong>correspondence</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a></span>) – Correspondence score [0, 1]</p></li>
+<li><p><strong>correspondence_interpretation</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – “high”, “medium”, or “low”</p></li>
+<li><p><strong>feature_names</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</span>) – Names of features (optional)</p></li>
+<li><p><strong>class_names</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</span>) – Mapping from class labels to names (optional)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="case_explainer.Explanation.get_predicted_class_name">
+<span class="sig-name descname"><span class="pre">get_predicted_class_name</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/case_explainer/explanation.html#Explanation.get_predicted_class_name"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#case_explainer.Explanation.get_predicted_class_name" title="Link to this definition"></a></dt>
+<dd><p>Get the predicted class name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="case_explainer.Explanation.get_true_class_name">
+<span class="sig-name descname"><span class="pre">get_true_class_name</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/case_explainer/explanation.html#Explanation.get_true_class_name"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#case_explainer.Explanation.get_true_class_name" title="Link to this definition"></a></dt>
+<dd><p>Get the true class name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="case_explainer.Explanation.is_correct">
+<span class="sig-name descname"><span class="pre">is_correct</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/case_explainer/explanation.html#Explanation.is_correct"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#case_explainer.Explanation.is_correct" title="Link to this definition"></a></dt>
+<dd><p>Check if prediction matches true label (if available).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="case_explainer.Explanation.summary">
+<span class="sig-name descname"><span class="pre">summary</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/case_explainer/explanation.html#Explanation.summary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#case_explainer.Explanation.summary" title="Link to this definition"></a></dt>
+<dd><p>Generate a text summary of the explanation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="case_explainer.Explanation.to_dict">
+<span class="sig-name descname"><span class="pre">to_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/case_explainer/explanation.html#Explanation.to_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#case_explainer.Explanation.to_dict" title="Link to this definition"></a></dt>
+<dd><p>Export explanation as dictionary (for JSON serialization).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="case_explainer.Explanation.plot">
+<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">plot_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'radar'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">highlight_differences</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_distances</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(12,</span> <span class="pre">8)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/case_explainer/explanation.html#Explanation.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#case_explainer.Explanation.plot" title="Link to this definition"></a></dt>
+<dd><p>Visualize the explanation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>plot_type</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – ‘radar’, ‘bar’, or ‘parallel’</p></li>
+<li><p><strong>highlight_differences</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – Whether to highlight feature differences</p></li>
+<li><p><strong>show_distances</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – Whether to show distance values</p></li>
+<li><p><strong>save_path</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – Path to save figure (if provided)</p></li>
+<li><p><strong>figsize</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Tuple</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>]</span>) – Figure size</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<section id="key-attributes">
+<h3>Key Attributes<a class="headerlink" href="#key-attributes" title="Link to this heading"></a></h3>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="case_explainer.Explanation.correspondence">
+<span class="sig-prename descclassname"><span class="pre">Explanation.</span></span><span class="sig-name descname"><span class="pre">correspondence</span></span><a class="headerlink" href="#case_explainer.Explanation.correspondence" title="Link to this definition"></a></dt>
+<dd><p>The correspondence score between 0 and 1, indicating agreement between the prediction and retrieved neighbors.
+Higher values indicate stronger agreement with training precedent.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="case_explainer.Explanation.correspondence_interpretation">
+<span class="sig-prename descclassname"><span class="pre">Explanation.</span></span><span class="sig-name descname"><span class="pre">correspondence_interpretation</span></span><a class="headerlink" href="#case_explainer.Explanation.correspondence_interpretation" title="Link to this definition"></a></dt>
+<dd><p>Human-readable interpretation of correspondence: ‘high’ (≥85%), ‘medium’ (70-85%), or ‘low’ (&lt;70%).</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="case_explainer.Explanation.neighbors">
+<span class="sig-prename descclassname"><span class="pre">Explanation.</span></span><span class="sig-name descname"><span class="pre">neighbors</span></span><a class="headerlink" href="#case_explainer.Explanation.neighbors" title="Link to this definition"></a></dt>
+<dd><p>List of <code class="xref py py-class docutils literal notranslate"><span class="pre">Neighbor</span></code> objects representing the k nearest training samples.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="case_explainer.Explanation.predicted_class">
+<span class="sig-prename descclassname"><span class="pre">Explanation.</span></span><span class="sig-name descname"><span class="pre">predicted_class</span></span><a class="headerlink" href="#case_explainer.Explanation.predicted_class" title="Link to this definition"></a></dt>
+<dd><p>The predicted class for the explained instance.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="case_explainer.Explanation.true_class">
+<span class="sig-prename descclassname"><span class="pre">Explanation.</span></span><span class="sig-name descname"><span class="pre">true_class</span></span><a class="headerlink" href="#case_explainer.Explanation.true_class" title="Link to this definition"></a></dt>
+<dd><p>The true class of the explained instance (if provided).</p>
+</dd></dl>
+
+</section>
+<section id="methods">
+<h3>Methods<a class="headerlink" href="#methods" title="Link to this heading"></a></h3>
+<dl class="py method">
+<dt class="sig sig-object py" id="id0">
+<span class="sig-prename descclassname"><span class="pre">Explanation.</span></span><span class="sig-name descname"><span class="pre">is_correct</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/case_explainer/explanation.html#Explanation.is_correct"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id0" title="Link to this definition"></a></dt>
+<dd><p>Check if prediction matches true label (if available).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id1">
+<span class="sig-prename descclassname"><span class="pre">Explanation.</span></span><span class="sig-name descname"><span class="pre">summary</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/case_explainer/explanation.html#Explanation.summary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id1" title="Link to this definition"></a></dt>
+<dd><p>Generate a text summary of the explanation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id2">
+<span class="sig-prename descclassname"><span class="pre">Explanation.</span></span><span class="sig-name descname"><span class="pre">to_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/case_explainer/explanation.html#Explanation.to_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id2" title="Link to this definition"></a></dt>
+<dd><p>Export explanation as dictionary (for JSON serialization).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id3">
+<span class="sig-prename descclassname"><span class="pre">Explanation.</span></span><span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">plot_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'radar'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">highlight_differences</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_distances</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(12,</span> <span class="pre">8)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/case_explainer/explanation.html#Explanation.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id3" title="Link to this definition"></a></dt>
+<dd><p>Visualize the explanation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>plot_type</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>) – ‘radar’, ‘bar’, or ‘parallel’</p></li>
+<li><p><strong>highlight_differences</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – Whether to highlight feature differences</p></li>
+<li><p><strong>show_distances</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></span>) – Whether to show distance values</p></li>
+<li><p><strong>save_path</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</span>) – Path to save figure (if provided)</p></li>
+<li><p><strong>figsize</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Tuple</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>]</span>) – Figure size</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+<section id="neighbor">
+<h2>Neighbor<a class="headerlink" href="#neighbor" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="case_explainer.explanation.Neighbor">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">case_explainer.explanation.</span></span><span class="sig-name descname"><span class="pre">Neighbor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/case_explainer/explanation.html#Neighbor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#case_explainer.explanation.Neighbor" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Represents a single nearest neighbor.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="case_explainer.explanation.Neighbor.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/case_explainer/explanation.html#Neighbor.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#case_explainer.explanation.Neighbor.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<section id="id4">
+<h3>Key Attributes<a class="headerlink" href="#id4" title="Link to this heading"></a></h3>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="case_explainer.Neighbor.index">
+<span class="sig-prename descclassname"><span class="pre">Neighbor.</span></span><span class="sig-name descname"><span class="pre">index</span></span><a class="headerlink" href="#case_explainer.Neighbor.index" title="Link to this definition"></a></dt>
+<dd><p>Index of the neighbor in the training set.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="case_explainer.Neighbor.distance">
+<span class="sig-prename descclassname"><span class="pre">Neighbor.</span></span><span class="sig-name descname"><span class="pre">distance</span></span><a class="headerlink" href="#case_explainer.Neighbor.distance" title="Link to this definition"></a></dt>
+<dd><p>Distance from the test sample to this neighbor.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="case_explainer.Neighbor.label">
+<span class="sig-prename descclassname"><span class="pre">Neighbor.</span></span><span class="sig-name descname"><span class="pre">label</span></span><a class="headerlink" href="#case_explainer.Neighbor.label" title="Link to this definition"></a></dt>
+<dd><p>Class label of the neighbor.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="case_explainer.Neighbor.features">
+<span class="sig-prename descclassname"><span class="pre">Neighbor.</span></span><span class="sig-name descname"><span class="pre">features</span></span><a class="headerlink" href="#case_explainer.Neighbor.features" title="Link to this definition"></a></dt>
+<dd><p>Feature values of the neighbor.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="case_explainer.Neighbor.metadata">
+<span class="sig-prename descclassname"><span class="pre">Neighbor.</span></span><span class="sig-name descname"><span class="pre">metadata</span></span><a class="headerlink" href="#case_explainer.Neighbor.metadata" title="Link to this definition"></a></dt>
+<dd><p>Optional metadata dictionary for this training sample.</p>
+</dd></dl>
+
+</section>
+</section>
+<section id="example-usage">
+<h2>Example Usage<a class="headerlink" href="#example-usage" title="Link to this heading"></a></h2>
+<section id="accessing-explanation-details">
+<h3>Accessing Explanation Details<a class="headerlink" href="#accessing-explanation-details" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">case_explainer</span><span class="w"> </span><span class="kn">import</span> <span class="n">CaseExplainer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_iris</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.ensemble</span><span class="w"> </span><span class="kn">import</span> <span class="n">RandomForestClassifier</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.model_selection</span><span class="w"> </span><span class="kn">import</span> <span class="n">train_test_split</span>
+
+<span class="c1"># Setup</span>
+<span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">load_iris</span><span class="p">(</span><span class="n">return_X_y</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">X_train</span><span class="p">,</span> <span class="n">X_test</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">y_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">test_size</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+
+<span class="n">clf</span> <span class="o">=</span> <span class="n">RandomForestClassifier</span><span class="p">()</span>
+<span class="n">clf</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+
+<span class="n">explainer</span> <span class="o">=</span> <span class="n">CaseExplainer</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+<span class="n">explanation</span> <span class="o">=</span> <span class="n">explainer</span><span class="o">.</span><span class="n">explain_instance</span><span class="p">(</span><span class="n">X_test</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">k</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="n">clf</span><span class="p">)</span>
+
+<span class="c1"># Access explanation properties</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Correspondence: </span><span class="si">{</span><span class="n">explanation</span><span class="o">.</span><span class="n">correspondence</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Interpretation: </span><span class="si">{</span><span class="n">explanation</span><span class="o">.</span><span class="n">correspondence_interpretation</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Predicted class: </span><span class="si">{</span><span class="n">explanation</span><span class="o">.</span><span class="n">predicted_class</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Is correct: </span><span class="si">{</span><span class="n">explanation</span><span class="o">.</span><span class="n">is_correct</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="inspecting-neighbors">
+<h3>Inspecting Neighbors<a class="headerlink" href="#inspecting-neighbors" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Examine each neighbor</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">neighbor</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">explanation</span><span class="o">.</span><span class="n">neighbors</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Neighbor </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Training index: </span><span class="si">{</span><span class="n">neighbor</span><span class="o">.</span><span class="n">index</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Distance: </span><span class="si">{</span><span class="n">neighbor</span><span class="o">.</span><span class="n">distance</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Label: </span><span class="si">{</span><span class="n">neighbor</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Features: </span><span class="si">{</span><span class="n">neighbor</span><span class="o">.</span><span class="n">features</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>  <span class="c1"># First 3 features</span>
+
+    <span class="k">if</span> <span class="n">neighbor</span><span class="o">.</span><span class="n">metadata</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Metadata: </span><span class="si">{</span><span class="n">neighbor</span><span class="o">.</span><span class="n">metadata</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="exporting-explanations">
+<h3>Exporting Explanations<a class="headerlink" href="#exporting-explanations" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Convert to dictionary for JSON serialization</span>
+<span class="n">exp_dict</span> <span class="o">=</span> <span class="n">explanation</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;explanation.json&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">exp_dict</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="c1"># The dictionary contains:</span>
+<span class="c1"># - correspondence: float</span>
+<span class="c1"># - correspondence_interpretation: str</span>
+<span class="c1"># - predicted_class: int</span>
+<span class="c1"># - true_class: int or None</span>
+<span class="c1"># - is_correct: bool or None</span>
+<span class="c1"># - neighbors: list of dicts with index, distance, label, features</span>
+</pre></div>
+</div>
+</section>
+<section id="generating-summaries">
+<h3>Generating Summaries<a class="headerlink" href="#generating-summaries" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get human-readable summary</span>
+<span class="n">summary</span> <span class="o">=</span> <span class="n">explanation</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">summary</span><span class="p">)</span>
+
+<span class="c1"># Example output:</span>
+<span class="c1"># Explanation for test sample:</span>
+<span class="c1">#   Predicted class: 1</span>
+<span class="c1">#   True class: 1 (CORRECT)</span>
+<span class="c1">#   Correspondence: 94.3% (high)</span>
+<span class="c1">#</span>
+<span class="c1"># Nearest neighbors:</span>
+<span class="c1">#   1. Index 42, distance 0.123, label 1</span>
+<span class="c1">#   2. Index 67, distance 0.234, label 1</span>
+<span class="c1">#   3. Index 15, distance 0.289, label 1</span>
+<span class="c1">#   4. Index 89, distance 0.345, label 0</span>
+<span class="c1">#   5. Index 23, distance 0.401, label 1</span>
+</pre></div>
+</div>
+</section>
+<section id="visualizing-explanations">
+<h3>Visualizing Explanations<a class="headerlink" href="#visualizing-explanations" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create bar plot of neighbor distances and labels</span>
+<span class="n">explanation</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+
+<span class="c1"># Save plot to file</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="n">explanation</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s1">&#39;explanation.png&#39;</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="batch-analysis">
+<h3>Batch Analysis<a class="headerlink" href="#batch-analysis" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Analyze multiple explanations</span>
+<span class="n">explanations</span> <span class="o">=</span> <span class="n">explainer</span><span class="o">.</span><span class="n">explain_batch</span><span class="p">(</span><span class="n">X_test</span><span class="p">[:</span><span class="mi">50</span><span class="p">],</span> <span class="n">k</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">y_test</span><span class="o">=</span><span class="n">y_test</span><span class="p">[:</span><span class="mi">50</span><span class="p">],</span> <span class="n">model</span><span class="o">=</span><span class="n">clf</span><span class="p">)</span>
+
+<span class="c1"># Correspondence by class</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="n">corr_by_class</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">exp</span> <span class="ow">in</span> <span class="n">explanations</span><span class="p">:</span>
+    <span class="n">corr_by_class</span><span class="p">[</span><span class="n">exp</span><span class="o">.</span><span class="n">predicted_class</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">exp</span><span class="o">.</span><span class="n">correspondence</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="bp">cls</span><span class="p">,</span> <span class="n">corrs</span> <span class="ow">in</span> <span class="n">corr_by_class</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="n">mean_corr</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">corrs</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">corrs</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Class </span><span class="si">{</span><span class="bp">cls</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">mean_corr</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2"> avg correspondence (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">corrs</span><span class="p">)</span><span class="si">}</span><span class="s2"> samples)&quot;</span><span class="p">)</span>
+
+<span class="c1"># High vs low correspondence predictions</span>
+<span class="n">high_corr</span> <span class="o">=</span> <span class="p">[</span><span class="n">exp</span> <span class="k">for</span> <span class="n">exp</span> <span class="ow">in</span> <span class="n">explanations</span> <span class="k">if</span> <span class="n">exp</span><span class="o">.</span><span class="n">correspondence</span> <span class="o">&gt;=</span> <span class="mf">0.85</span><span class="p">]</span>
+<span class="n">low_corr</span> <span class="o">=</span> <span class="p">[</span><span class="n">exp</span> <span class="k">for</span> <span class="n">exp</span> <span class="ow">in</span> <span class="n">explanations</span> <span class="k">if</span> <span class="n">exp</span><span class="o">.</span><span class="n">correspondence</span> <span class="o">&lt;</span> <span class="mf">0.70</span><span class="p">]</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">High correspondence (≥85%): </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">high_corr</span><span class="p">)</span><span class="si">}</span><span class="s2"> samples&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Low correspondence (&lt;70%): </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">low_corr</span><span class="p">)</span><span class="si">}</span><span class="s2"> samples&quot;</span><span class="p">)</span>
+
+<span class="c1"># Accuracy by correspondence level</span>
+<span class="n">high_acc</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">exp</span> <span class="ow">in</span> <span class="n">high_corr</span> <span class="k">if</span> <span class="n">exp</span><span class="o">.</span><span class="n">is_correct</span><span class="p">())</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">high_corr</span><span class="p">)</span>
+<span class="n">low_acc</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">exp</span> <span class="ow">in</span> <span class="n">low_corr</span> <span class="k">if</span> <span class="n">exp</span><span class="o">.</span><span class="n">is_correct</span><span class="p">())</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">low_corr</span><span class="p">)</span> <span class="k">if</span> <span class="n">low_corr</span> <span class="k">else</span> <span class="mi">0</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;High correspondence accuracy: </span><span class="si">{</span><span class="n">high_acc</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Low correspondence accuracy: </span><span class="si">{</span><span class="n">low_acc</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="explainer.html#case_explainer.CaseExplainer" title="case_explainer.CaseExplainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">CaseExplainer</span></code></a>: The main explainer class that generates these explanations</p></li>
+<li><p><code class="xref py py-mod docutils literal notranslate"><span class="pre">case_explainer.metrics</span></code>: The correspondence computation functions</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="explainer.html" class="btn btn-neutral float-left" title="CaseExplainer" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="metrics.html" class="btn btn-neutral float-right" title="Metrics" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Paul Whitten, Francis Wolff, Chris Papachristou.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

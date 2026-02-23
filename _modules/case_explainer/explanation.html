@@ -1,0 +1,501 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>case_explainer.explanation &mdash; Case-Explainer 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Case-Explainer
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/explainer.html">CaseExplainer</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../api/explainer.html#case_explainer.CaseExplainer"><code class="docutils literal notranslate"><span class="pre">CaseExplainer</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explainer.html#case_explainer.CaseExplainer.__init__"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explainer.html#case_explainer.CaseExplainer.explain_instance"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.explain_instance()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explainer.html#case_explainer.CaseExplainer.explain_batch"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.explain_batch()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explainer.html#case_explainer.CaseExplainer.get_training_info"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.get_training_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/explainer.html#core-methods">Core Methods</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explainer.html#building-the-explainer">Building the Explainer</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explainer.html#id0"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explainer.html#explaining-predictions">Explaining Predictions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explainer.html#id1"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.explain_instance()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explainer.html#id2"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.explain_batch()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/explainer.html#example-usage">Example Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explainer.html#basic-example">Basic Example</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explainer.html#batch-explanations">Batch Explanations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explainer.html#working-with-metadata">Working with Metadata</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/explainer.html#configuration-options">Configuration Options</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explainer.html#algorithm-selection">Algorithm Selection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explainer.html#feature-scaling">Feature Scaling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explainer.html#class-weights">Class Weights</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/explainer.html#notes">Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/explainer.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/explanation.html">Explanation Objects</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../api/explanation.html#explanation">Explanation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explanation.html#case_explainer.Explanation"><code class="docutils literal notranslate"><span class="pre">Explanation</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.Explanation.__init__"><code class="docutils literal notranslate"><span class="pre">Explanation.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.Explanation.get_predicted_class_name"><code class="docutils literal notranslate"><span class="pre">Explanation.get_predicted_class_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.Explanation.get_true_class_name"><code class="docutils literal notranslate"><span class="pre">Explanation.get_true_class_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.Explanation.is_correct"><code class="docutils literal notranslate"><span class="pre">Explanation.is_correct()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.Explanation.summary"><code class="docutils literal notranslate"><span class="pre">Explanation.summary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.Explanation.to_dict"><code class="docutils literal notranslate"><span class="pre">Explanation.to_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.Explanation.plot"><code class="docutils literal notranslate"><span class="pre">Explanation.plot()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explanation.html#key-attributes">Key Attributes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.Explanation.correspondence"><code class="docutils literal notranslate"><span class="pre">Explanation.correspondence</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.Explanation.correspondence_interpretation"><code class="docutils literal notranslate"><span class="pre">Explanation.correspondence_interpretation</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.Explanation.neighbors"><code class="docutils literal notranslate"><span class="pre">Explanation.neighbors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.Explanation.predicted_class"><code class="docutils literal notranslate"><span class="pre">Explanation.predicted_class</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.Explanation.true_class"><code class="docutils literal notranslate"><span class="pre">Explanation.true_class</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explanation.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#id0"><code class="docutils literal notranslate"><span class="pre">Explanation.is_correct()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#id1"><code class="docutils literal notranslate"><span class="pre">Explanation.summary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#id2"><code class="docutils literal notranslate"><span class="pre">Explanation.to_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#id3"><code class="docutils literal notranslate"><span class="pre">Explanation.plot()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/explanation.html#neighbor">Neighbor</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explanation.html#case_explainer.explanation.Neighbor"><code class="docutils literal notranslate"><span class="pre">Neighbor</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.explanation.Neighbor.__init__"><code class="docutils literal notranslate"><span class="pre">Neighbor.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explanation.html#id4">Key Attributes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.Neighbor.index"><code class="docutils literal notranslate"><span class="pre">Neighbor.index</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.Neighbor.distance"><code class="docutils literal notranslate"><span class="pre">Neighbor.distance</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.Neighbor.label"><code class="docutils literal notranslate"><span class="pre">Neighbor.label</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.Neighbor.features"><code class="docutils literal notranslate"><span class="pre">Neighbor.features</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/explanation.html#case_explainer.Neighbor.metadata"><code class="docutils literal notranslate"><span class="pre">Neighbor.metadata</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/explanation.html#example-usage">Example Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explanation.html#accessing-explanation-details">Accessing Explanation Details</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explanation.html#inspecting-neighbors">Inspecting Neighbors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explanation.html#exporting-explanations">Exporting Explanations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explanation.html#generating-summaries">Generating Summaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explanation.html#visualizing-explanations">Visualizing Explanations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/explanation.html#batch-analysis">Batch Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/explanation.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/metrics.html">Metrics</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../api/metrics.html#functions">Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/metrics.html#compute-correspondence">compute_correspondence</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/metrics.html#case_explainer.metrics.compute_correspondence"><code class="docutils literal notranslate"><span class="pre">compute_correspondence()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/metrics.html#euclidean-distance">euclidean_distance</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/metrics.html#case_explainer.metrics.euclidean_distance"><code class="docutils literal notranslate"><span class="pre">euclidean_distance()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/metrics.html#theory">Theory</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/metrics.html#correspondence-metric">Correspondence Metric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../api/metrics.html#mathematical-definition">Mathematical Definition</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/metrics.html#interpretation">Interpretation</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/metrics.html#distance-weighting">Distance Weighting</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/metrics.html#example-usage">Example Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/metrics.html#computing-correspondence">Computing Correspondence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/metrics.html#distance-computation">Distance Computation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/metrics.html#understanding-correspondence-behavior">Understanding Correspondence Behavior</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/metrics.html#class-weights">Class Weights</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/metrics.html#notes">Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/metrics.html#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Additional Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../citation.html">Citation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../citation.html#bibtex">BibTeX</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../citation.html#related-publications">Related Publications</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../citation.html#acknowledgments">Acknowledgments</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../license.html">License</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../license.html#mit-license">MIT License</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../license.html#what-this-means">What This Means</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Case-Explainer</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">case_explainer.explanation</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for case_explainer.explanation</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Explanation object for case-based explanations.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span>
+
+
+<div class="viewcode-block" id="Neighbor">
+<a class="viewcode-back" href="../../api/explanation.html#case_explainer.Neighbor">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Neighbor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Represents a single nearest neighbor.&quot;&quot;&quot;</span>
+    
+<div class="viewcode-block" id="Neighbor.__init__">
+<a class="viewcode-back" href="../../api/explanation.html#case_explainer.Neighbor.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">distance</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">label</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">features</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">metadata</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">index</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">distance</span> <span class="o">=</span> <span class="n">distance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">label</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">features</span> <span class="o">=</span> <span class="n">features</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="n">metadata</span> <span class="ow">or</span> <span class="p">{}</span></div>
+
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">meta_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Neighbor(index=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="si">}</span><span class="s2">, distance=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">distance</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, label=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="si">}{</span><span class="n">meta_str</span><span class="si">}</span><span class="s2">)&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="Explanation">
+<a class="viewcode-back" href="../../api/explanation.html#case_explainer.Explanation">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Explanation</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Explanation object containing case-based explanation details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+<div class="viewcode-block" id="Explanation.__init__">
+<a class="viewcode-back" href="../../api/explanation.html#case_explainer.Explanation.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">test_sample</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">test_index</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+        <span class="n">neighbors</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Neighbor</span><span class="p">],</span>
+        <span class="n">predicted_class</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">true_class</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+        <span class="n">correspondence</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">correspondence_interpretation</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">feature_names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">class_names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize explanation.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            test_sample: The test sample being explained</span>
+<span class="sd">            test_index: Index in test set (if applicable)</span>
+<span class="sd">            neighbors: List of Neighbor objects</span>
+<span class="sd">            predicted_class: Predicted class label</span>
+<span class="sd">            true_class: True class label (if available)</span>
+<span class="sd">            correspondence: Correspondence score [0, 1]</span>
+<span class="sd">            correspondence_interpretation: &quot;high&quot;, &quot;medium&quot;, or &quot;low&quot;</span>
+<span class="sd">            feature_names: Names of features (optional)</span>
+<span class="sd">            class_names: Mapping from class labels to names (optional)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test_sample</span> <span class="o">=</span> <span class="n">test_sample</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test_index</span> <span class="o">=</span> <span class="n">test_index</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">neighbors</span> <span class="o">=</span> <span class="n">neighbors</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">predicted_class</span> <span class="o">=</span> <span class="n">predicted_class</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">true_class</span> <span class="o">=</span> <span class="n">true_class</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">correspondence</span> <span class="o">=</span> <span class="n">correspondence</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">correspondence_interpretation</span> <span class="o">=</span> <span class="n">correspondence_interpretation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">feature_names</span> <span class="o">=</span> <span class="n">feature_names</span> <span class="ow">or</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;feature_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">test_sample</span><span class="p">))]</span>
+        <span class="c1"># Convert class_names list to dict if needed</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">class_names</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">class_names</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="n">name</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">class_names</span><span class="p">)}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">class_names</span> <span class="o">=</span> <span class="n">class_names</span> <span class="ow">or</span> <span class="p">{}</span></div>
+
+    
+<div class="viewcode-block" id="Explanation.get_predicted_class_name">
+<a class="viewcode-back" href="../../api/explanation.html#case_explainer.Explanation.get_predicted_class_name">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_predicted_class_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the predicted class name.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">class_names</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">predicted_class</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">predicted_class</span><span class="p">))</span></div>
+
+    
+<div class="viewcode-block" id="Explanation.get_true_class_name">
+<a class="viewcode-back" href="../../api/explanation.html#case_explainer.Explanation.get_true_class_name">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_true_class_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the true class name.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">true_class</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">class_names</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">true_class</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">true_class</span><span class="p">))</span></div>
+
+    
+<div class="viewcode-block" id="Explanation.is_correct">
+<a class="viewcode-back" href="../../api/explanation.html#case_explainer.Explanation.is_correct">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_correct</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if prediction matches true label (if available).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">true_class</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">predicted_class</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">true_class</span></div>
+
+    
+<div class="viewcode-block" id="Explanation.summary">
+<a class="viewcode-back" href="../../api/explanation.html#case_explainer.Explanation.summary">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">summary</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate a text summary of the explanation.&quot;&quot;&quot;</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;CASE-BASED EXPLANATION&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Test sample index: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">test_index</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Predicted class: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">get_predicted_class_name</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">true_class</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">correct_str</span> <span class="o">=</span> <span class="s2">&quot;[OK]&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_correct</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;[X]&quot;</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;True class: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">get_true_class_name</span><span class="p">()</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">correct_str</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Correspondence: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">correspondence</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">correspondence_interpretation</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Nearest </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">neighbors</span><span class="p">)</span><span class="si">}</span><span class="s2"> neighbors:&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
+        
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">neighbor</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">neighbors</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">neighbor_class</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">class_names</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">neighbor</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">neighbor</span><span class="o">.</span><span class="n">label</span><span class="p">))</span>
+            <span class="n">match_str</span> <span class="o">=</span> <span class="s2">&quot;*&quot;</span> <span class="k">if</span> <span class="n">neighbor</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">predicted_class</span> <span class="k">else</span> <span class="s2">&quot; &quot;</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">. [</span><span class="si">{</span><span class="n">match_str</span><span class="si">}</span><span class="s2">] Index </span><span class="si">{</span><span class="n">neighbor</span><span class="o">.</span><span class="n">index</span><span class="si">}</span><span class="s2">: class </span><span class="si">{</span><span class="n">neighbor_class</span><span class="si">}</span><span class="s2">, &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;distance </span><span class="si">{</span><span class="n">neighbor</span><span class="o">.</span><span class="n">distance</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            
+            <span class="c1"># Add metadata if available</span>
+            <span class="k">if</span> <span class="n">neighbor</span><span class="o">.</span><span class="n">metadata</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">neighbor</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+
+    
+<div class="viewcode-block" id="Explanation.to_dict">
+<a class="viewcode-back" href="../../api/explanation.html#case_explainer.Explanation.to_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Export explanation as dictionary (for JSON serialization).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;test_index&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_index</span><span class="p">,</span>
+            <span class="s2">&quot;test_sample&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_sample</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+            <span class="s2">&quot;predicted_class&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">predicted_class</span><span class="p">,</span>
+            <span class="s2">&quot;predicted_class_name&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_predicted_class_name</span><span class="p">(),</span>
+            <span class="s2">&quot;true_class&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">true_class</span><span class="p">,</span>
+            <span class="s2">&quot;true_class_name&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_true_class_name</span><span class="p">(),</span>
+            <span class="s2">&quot;is_correct&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_correct</span><span class="p">(),</span>
+            <span class="s2">&quot;correspondence&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">correspondence</span><span class="p">),</span>
+            <span class="s2">&quot;correspondence_interpretation&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">correspondence_interpretation</span><span class="p">,</span>
+            <span class="s2">&quot;neighbors&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;index&quot;</span><span class="p">:</span> <span class="n">n</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
+                    <span class="s2">&quot;distance&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">distance</span><span class="p">),</span>
+                    <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="n">n</span><span class="o">.</span><span class="n">label</span><span class="p">,</span>
+                    <span class="s2">&quot;label_name&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">class_names</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">label</span><span class="p">)),</span>
+                    <span class="s2">&quot;features&quot;</span><span class="p">:</span> <span class="n">n</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+                    <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="n">n</span><span class="o">.</span><span class="n">metadata</span>
+                <span class="p">}</span>
+                <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">neighbors</span>
+            <span class="p">],</span>
+            <span class="s2">&quot;feature_names&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">feature_names</span>
+        <span class="p">}</span></div>
+
+    
+<div class="viewcode-block" id="Explanation.plot">
+<a class="viewcode-back" href="../../api/explanation.html#case_explainer.Explanation.plot">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">plot</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">plot_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;radar&#39;</span><span class="p">,</span>
+        <span class="n">highlight_differences</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">show_distances</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">save_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">figsize</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">8</span><span class="p">)</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Visualize the explanation.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            plot_type: &#39;radar&#39;, &#39;bar&#39;, or &#39;parallel&#39;</span>
+<span class="sd">            highlight_differences: Whether to highlight feature differences</span>
+<span class="sd">            show_distances: Whether to show distance values</span>
+<span class="sd">            save_path: Path to save figure (if provided)</span>
+<span class="sd">            figsize: Figure size</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">plot_type</span> <span class="o">==</span> <span class="s1">&#39;bar&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_plot_bar</span><span class="p">(</span><span class="n">figsize</span><span class="p">,</span> <span class="n">save_path</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">plot_type</span> <span class="o">==</span> <span class="s1">&#39;radar&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_plot_radar</span><span class="p">(</span><span class="n">figsize</span><span class="p">,</span> <span class="n">save_path</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">plot_type</span> <span class="o">==</span> <span class="s1">&#39;parallel&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_plot_parallel</span><span class="p">(</span><span class="n">figsize</span><span class="p">,</span> <span class="n">save_path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown plot type: </span><span class="si">{</span><span class="n">plot_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_plot_bar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">figsize</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="n">save_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create bar plot comparing features.&quot;&quot;&quot;</span>
+        <span class="n">n_features</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">test_sample</span><span class="p">)</span>
+        <span class="n">n_neighbors</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">neighbors</span><span class="p">)</span>
+        
+        <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+        
+        <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_features</span><span class="p">)</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="mf">0.8</span> <span class="o">/</span> <span class="p">(</span><span class="n">n_neighbors</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        
+        <span class="c1"># Plot test sample</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_sample</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Test Sample&#39;</span><span class="p">,</span> 
+               <span class="n">color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">edgecolor</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        
+        <span class="c1"># Plot neighbors</span>
+        <span class="n">colors</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">Blues</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="n">n_neighbors</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">neighbor</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">neighbors</span><span class="p">):</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="n">width</span> <span class="o">*</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">match_str</span> <span class="o">=</span> <span class="s2">&quot;*&quot;</span> <span class="k">if</span> <span class="n">neighbor</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">predicted_class</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">offset</span><span class="p">,</span> <span class="n">neighbor</span><span class="o">.</span><span class="n">features</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span>
+                   <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Neighbor </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">match_str</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> 
+                   <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.6</span><span class="p">)</span>
+        
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Features&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Feature Values&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Case-Based Explanation (Correspondence: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">correspondence</span><span class="si">:</span><span class="s1">.2%</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">width</span> <span class="o">*</span> <span class="n">n_neighbors</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">feature_names</span><span class="p">,</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span><span class="s1">&#39;right&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+        
+        <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+        
+        <span class="k">if</span> <span class="n">save_path</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">150</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_plot_radar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">figsize</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="n">save_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create radar plot (not implemented yet - use bar for now).&quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Radar plot not yet implemented, using bar plot instead.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_plot_bar</span><span class="p">(</span><span class="n">figsize</span><span class="p">,</span> <span class="n">save_path</span><span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_plot_parallel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">figsize</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="n">save_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create parallel coordinates plot (not implemented yet - use bar for now).&quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Parallel coordinates plot not yet implemented, using bar plot instead.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_plot_bar</span><span class="p">(</span><span class="n">figsize</span><span class="p">,</span> <span class="n">save_path</span><span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Explanation(test_index=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">test_index</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;predicted=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">get_predicted_class_name</span><span class="p">()</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;correspondence=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">correspondence</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;neighbors=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">neighbors</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Paul Whitten, Francis Wolff, Chris Papachristou.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
