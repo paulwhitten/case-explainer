@@ -166,12 +166,12 @@ class TestSummary:
     def test_summary_correct_mark(self):
         exp = _make_explanation(predicted_class=1, true_class=1)
         s = exp.summary()
-        assert "\u2713" in s  # ✓
+        assert "[OK]" in s
 
     def test_summary_incorrect_mark(self):
         exp = _make_explanation(predicted_class=1, true_class=0)
         s = exp.summary()
-        assert "\u2717" in s  # ✗
+        assert "[X]" in s
 
     def test_summary_neighbor_metadata(self):
         exp = _make_explanation(n_neighbors=1)

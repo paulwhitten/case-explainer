@@ -70,12 +70,14 @@ print(explanation.summary())
 
 ### Correspondence Metric
 
-Quantifies agreement between prediction and retrieved neighbors using inverse squared distance weighting:
+Quantifies agreement between prediction and retrieved neighbors using inverse-cubed distance weighting:
 
 ```
-w(c) = Σ[1/(distance² + 1)] for neighbors with class c
-Correspondence = w(predicted_class) / Σ w(all_classes)
+w(c) = sum[ 1 / (distance + 1)^3 ] for neighbors with class c
+Correspondence = w(predicted_class) / sum( w(all_classes) )
 ```
+
+The `+1` offset in the denominator prevents division by zero when a test sample is identical to a training sample (distance = 0). In that case the weight is simply `1 / 1 = 1`.
 
 **Example Interpretation Thresholds** (domain-dependent, not universal standards):
 - **High (≥85%)**: Strong agreement with training precedent

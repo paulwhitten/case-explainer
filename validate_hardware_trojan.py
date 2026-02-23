@@ -88,7 +88,7 @@ def cross_validate_model(X_trainval, y_trainval):
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     cv_scores = cross_val_score(clf, X_trainval, y_trainval, cv=cv, scoring='accuracy')
     
-    print(f"  CV Accuracy: {cv_scores.mean():.4f} ± {cv_scores.std():.4f}")
+    print(f"  CV Accuracy: {cv_scores.mean():.4f} +/- {cv_scores.std():.4f}")
     print(f"  Fold scores: {[f'{s:.4f}' for s in cv_scores]}")
     print(f"  Min: {cv_scores.min():.4f}, Max: {cv_scores.max():.4f}")
     
@@ -307,10 +307,10 @@ def main():
     print("VALIDATION COMPLETE")
     print("="*70)
     print(f"\nSummary:")
-    print(f"  Cross-validation: {cv_scores.mean():.4f} ± {cv_scores.std():.4f}")
+    print(f"  Cross-validation: {cv_scores.mean():.4f} +/- {cv_scores.std():.4f}")
     print(f"  Test accuracy: {accuracy_score(y_test, predictions):.4f}")
     correspondences = [e.correspondence for e in explanations]
-    print(f"  Test correspondence: {np.mean(correspondences):.4f} ± {np.std(correspondences):.4f}")
+    print(f"  Test correspondence: {np.mean(correspondences):.4f} +/- {np.std(correspondences):.4f}")
 
 if __name__ == "__main__":
     main()

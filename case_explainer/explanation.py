@@ -103,7 +103,7 @@ class Explanation:
         lines.append(f"Predicted class: {self.get_predicted_class_name()}")
         
         if self.true_class is not None:
-            correct_str = "✓" if self.is_correct() else "✗"
+            correct_str = "[OK]" if self.is_correct() else "[X]"
             lines.append(f"True class: {self.get_true_class_name()} {correct_str}")
         
         lines.append(f"Correspondence: {self.correspondence:.2%} ({self.correspondence_interpretation})")
@@ -113,7 +113,7 @@ class Explanation:
         
         for i, neighbor in enumerate(self.neighbors, 1):
             neighbor_class = self.class_names.get(neighbor.label, str(neighbor.label))
-            match_str = "✓" if neighbor.label == self.predicted_class else " "
+            match_str = "*" if neighbor.label == self.predicted_class else " "
             lines.append(f"{i}. [{match_str}] Index {neighbor.index}: class {neighbor_class}, "
                         f"distance {neighbor.distance:.4f}")
             
@@ -196,7 +196,7 @@ class Explanation:
         colors = plt.cm.Blues(np.linspace(0.3, 0.8, n_neighbors))
         for i, neighbor in enumerate(self.neighbors):
             offset = width * (i + 1)
-            match_str = "✓" if neighbor.label == self.predicted_class else ""
+            match_str = "*" if neighbor.label == self.predicted_class else ""
             ax.bar(x + offset, neighbor.features, width,
                    label=f'Neighbor {i+1} {match_str}', 
                    color=colors[i], alpha=0.6)

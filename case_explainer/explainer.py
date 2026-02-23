@@ -5,11 +5,14 @@ Based on refined Method 2 (case-based) from hardware trojan detection pipeline.
 Uses sklearn's NearestNeighbors for efficient k-NN lookups with pre-built index.
 """
 
+import logging
 import numpy as np
 import pandas as pd
 from typing import List, Optional, Dict, Any, Union
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import NearestNeighbors
+
+logger = logging.getLogger(__name__)
 
 from .explanation import Explanation, Neighbor
 from .metrics import compute_correspondence
@@ -117,7 +120,7 @@ class CaseExplainer:
         
         # Build k-NN index using sklearn's NearestNeighbors
         # This is done once during initialization for efficiency
-        print(f"Building k-NN index (k={k}, metric={metric}, algorithm={algorithm})...")
+        logger.info("Building k-NN index (k=%d, metric=%s, algorithm=%s)...", k, metric, algorithm)
         self.nn_index = NearestNeighbors(
             n_neighbors=min(k, self.n_samples),  # Handle case where k > n_samples
             metric=metric,
@@ -125,7 +128,7 @@ class CaseExplainer:
             n_jobs=n_jobs
         )
         self.nn_index.fit(self.X_train_scaled)
-        print(f"Index built on {self.n_samples} training samples")
+        logger.info("Index built on %d training samples", self.n_samples)
     
     def explain_instance(
         self,

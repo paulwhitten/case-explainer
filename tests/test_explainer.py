@@ -175,7 +175,7 @@ class TestExplainInstance:
         assert len(exp.neighbors) == 3
 
     def test_correspondence_high_for_matching_cluster(self, explainer):
-        """Query close to class-0 cluster → high correspondence."""
+        """Query close to class-0 cluster -> high correspondence."""
         exp = explainer.explain_instance(np.array([0.05, 0.05]), predicted_class=0, k=3)
         assert exp.correspondence > 0.8
         assert exp.correspondence_interpretation == "high"
@@ -244,6 +244,25 @@ class TestExplainBatch:
         exps = explainer.explain_batch(X_test, model=mock_model)
         assert len(exps) == 2
 
+    def test_batch_with_real_classifier(self, simple_data):
+        """explain_batch with a real trained model (not mocked)."""
+        from sklearn.tree import DecisionTreeClassifier
+        X, y = simple_data
+        clf = DecisionTreeClassifier(random_state=42)
+        clf.fit(X, y)
+        ex = CaseExplainer(X, y, k=3, scale_data=False)
+        X_test = np.array([[0.05, 0.05], [10.05, 10.05]])
+        y_test = np.array([0, 1])
+        exps = ex.explain_batch(X_test, model=clf, y_test=y_test)
+        assert len(exps) == 2
+        # Model should predict correctly on these obvious points
+        assert exps[0].predicted_class == 0
+        assert exps[1].predicted_class == 1
+        # Correspondence should be high for well-separated clusters
+        for exp in exps:
+            assert exp.correspondence > 0.8
+            assert exp.is_correct() is True
+
     def test_batch_with_y_test(self, explainer):
         X_test = np.array([[0.0, 0.0]])
         y_test = np.array([0])
@@ -270,6 +289,90 @@ class TestExplainBatch:
         exps = explainer.explain_batch(X_test, predictions=preds)
         for i, exp in enumerate(exps):
             assert exp.test_index == i
+
+
+# --- Integration with real classifier ---
+
+class TestIntegrationRealClassifier:
+    """End-to-end tests using actual sklearn classifiers (no mocks)."""
+
+    def test_explain_with_real_model(self, simple_data):
+        """explain_instance with a real trained classifier."""
+        from sklearn.tree import DecisionTreeClassifier
+        X, y = simple_data
+        clf = DecisionTreeClassifier(random_state=42)
+        clf.fit(X, y)
+        ex = CaseExplainer(X, y, k=3, scale_data=False)
+        exp = ex.explain_instance(np.array([0.05, 0.05]), model=clf)
+        assert isinstance(exp, Explanation)
+        assert exp.predicted_class == 0  # close to class-0 cluster
+        assert exp.correspondence > 0.8
+
+    def test_batch_with_real_model(self, simple_data):
+        """explain_batch with a real trained classifier."""
+        from sklearn.tree import DecisionTreeClassifier
+        X, y = simple_data
+        clf = DecisionTreeClassifier(random_state=42)
+        clf.fit(X, y)
+        ex = CaseExplainer(X, y, k=3, scale_data=False)
+        X_test = np.array([[0.05, 0.05], [10.05, 10.05]])
+        exps = ex.explain_batch(X_test, model=clf, y_test=np.array([0, 1]))
+        assert len(exps) == 2
+        assert exps[0].predicted_class == 0
+        assert exps[1].predicted_class == 1
+        assert exps[0].is_correct() is True
+        assert exps[1].is_correct() is True
+
+    def test_iris_end_to_end(self, iris_data, iris_clf):
+        """Full pipeline with Iris dataset and RandomForest."""
+        X_train, X_test, y_train, y_test = iris_data
+        ex = CaseExplainer(
+            X_train, y_train, k=5,
+            feature_names=['sepal_len', 'sepal_wid', 'petal_len', 'petal_wid'],
+            class_names={0: 'setosa', 1: 'versicolor', 2: 'virginica'},
+        )
+        # Single explanation
+        exp = ex.explain_instance(
+            X_test[0], model=iris_clf, true_class=int(y_test[0])
+        )
+        assert isinstance(exp, Explanation)
+        assert 0.0 <= exp.correspondence <= 1.0
+        assert exp.correspondence_interpretation in ('high', 'medium', 'low')
+        assert len(exp.neighbors) == 5
+        assert exp.feature_names == ['sepal_len', 'sepal_wid', 'petal_len', 'petal_wid']
+
+    def test_iris_batch(self, iris_data, iris_clf):
+        """Batch explanation on Iris with accuracy check."""
+        X_train, X_test, y_train, y_test = iris_data
+        ex = CaseExplainer(X_train, y_train, k=5)
+        exps = ex.explain_batch(
+            X_test[:10], model=iris_clf, y_test=y_test[:10]
+        )
+        assert len(exps) == 10
+        # RandomForest on Iris should get most right
+        correct = sum(1 for e in exps if e.is_correct())
+        assert correct >= 8  # at least 80% on easy dataset
+        # Correct predictions should have higher correspondence on average
+        corr_correct = [e.correspondence for e in exps if e.is_correct()]
+        corr_wrong = [e.correspondence for e in exps if not e.is_correct()]
+        if corr_wrong:  # might be empty if all correct
+            assert np.mean(corr_correct) >= np.mean(corr_wrong)
+
+    def test_iris_summary_and_dict(self, iris_data, iris_clf):
+        """Verify summary and to_dict work with real Iris data."""
+        X_train, X_test, y_train, y_test = iris_data
+        ex = CaseExplainer(
+            X_train, y_train, k=3,
+            class_names={0: 'setosa', 1: 'versicolor', 2: 'virginica'},
+        )
+        exp = ex.explain_instance(X_test[0], model=iris_clf)
+        summary = exp.summary()
+        assert 'CASE-BASED EXPLANATION' in summary
+        assert 'Correspondence' in summary
+        d = exp.to_dict()
+        assert isinstance(d['correspondence'], float)
+        assert len(d['neighbors']) == 3
+        assert d['predicted_class_name'] in ('setosa', 'versicolor', 'virginica')
 
 
 # --- get_training_info ---

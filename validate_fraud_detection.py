@@ -150,7 +150,7 @@ def test_correspondence_sensitivity(X_train, y_train, X_test, y_test, clf, test_
         }
         results.append(result)
         
-        print(f"  Mean correspondence: {np.mean(corrs):.4f} ± {std:.4f}")
+        print(f"  Mean correspondence: {np.mean(corrs):.4f} +/- {std:.4f}")
         print(f"  Correct: {corr_correct:.4f}, Incorrect: {corr_incorrect:.4f}")
         print(f"  Gap: {gap:.4f} ({gap*100:.2f}% points)")
         print(f"  Time: {result['time_ms']:.2f} ms/explanation")
@@ -222,7 +222,7 @@ def test_alternative_similarity_metrics(X_train, y_train, X_test, y_test, clf, t
     corr_incorrect = np.mean(leaf_corrs[~correct_mask]) if np.sum(~correct_mask) > 0 else 0.0
     gap = corr_correct - corr_incorrect
     
-    print(f"  Mean correspondence: {np.mean(leaf_corrs):.4f} ± {np.std(leaf_corrs):.4f}")
+    print(f"  Mean correspondence: {np.mean(leaf_corrs):.4f} +/- {np.std(leaf_corrs):.4f}")
     print(f"  Correct: {corr_correct:.4f}, Incorrect: {corr_incorrect:.4f}")
     print(f"  Gap: {gap:.4f} ({gap*100:.2f}% points)")
     print(f"  Interpretation: Uses model's learned feature space (which trees/leaves)")
@@ -237,7 +237,7 @@ def test_alternative_similarity_metrics(X_train, y_train, X_test, y_test, clf, t
     conf_incorrect = np.mean(confidences[~correct_mask]) if np.sum(~correct_mask) > 0 else 0.0
     conf_gap = conf_correct - conf_incorrect
     
-    print(f"  Mean confidence: {np.mean(confidences):.4f} ± {np.std(confidences):.4f}")
+    print(f"  Mean confidence: {np.mean(confidences):.4f} +/- {np.std(confidences):.4f}")
     print(f"  Correct: {conf_correct:.4f}, Incorrect: {conf_incorrect:.4f}")
     print(f"  Gap: {conf_gap:.4f} ({conf_gap*100:.2f}% points)")
     

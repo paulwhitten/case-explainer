@@ -116,6 +116,62 @@ class TestComputeCorrespondence:
         assert interp == "low"
 
 
+class TestCorrespondenceNumericalAccuracy:
+    """Verify exact numerical values from the correspondence formula.
+
+    Formula: weight = 1 / (distance + 1)^3
+    Correspondence = weight(predicted_class) / sum(weight(all_classes))
+    """
+
+    def test_exact_two_neighbors_different_distances(self):
+        """Hand-computed: one class-1 at dist=0.5, one class-0 at dist=2.0."""
+        neighbors = [(0, 0.5, 1), (1, 2.0, 0)]
+        # w(class 1) = 1 / (0.5 + 1)^3 = 1 / 1.5^3 = 1 / 3.375
+        # w(class 0) = 1 / (2.0 + 1)^3 = 1 / 3.0^3 = 1 / 27.0
+        w1 = 1.0 / (1.5 ** 3)  # 0.296296...
+        w0 = 1.0 / (3.0 ** 3)  # 0.037037...
+        expected = w1 / (w1 + w0)  # 0.888888...
+        corr, interp = compute_correspondence(neighbors, predicted_class=1)
+        assert corr == pytest.approx(expected, abs=1e-10)
+        assert interp == "high"
+
+    def test_exact_zero_distance(self):
+        """Distance=0 -> weight = 1/(0+1)^3 = 1.0 (no divide-by-zero)."""
+        neighbors = [(0, 0.0, 1), (1, 1.0, 0)]
+        # w(class 1) = 1 / 1^3 = 1.0
+        # w(class 0) = 1 / 2^3 = 0.125
+        expected = 1.0 / (1.0 + 0.125)
+        corr, _ = compute_correspondence(neighbors, predicted_class=1)
+        assert corr == pytest.approx(expected, abs=1e-10)
+
+    def test_exact_three_neighbors_with_class_weights(self):
+        """Hand-computed with class_weights={0: 1.0, 1: 2.0}."""
+        neighbors = [(0, 0.0, 1), (1, 0.0, 0), (2, 1.0, 1)]
+        # w(class 1, idx 0) = 2.0 / (0+1)^3 = 2.0
+        # w(class 0, idx 1) = 1.0 / (0+1)^3 = 1.0
+        # w(class 1, idx 2) = 2.0 / (1+1)^3 = 2.0/8 = 0.25
+        w1_total = 2.0 + 0.25  # 2.25
+        w0_total = 1.0
+        expected = w1_total / (w1_total + w0_total)  # 2.25 / 3.25
+        corr, _ = compute_correspondence(
+            neighbors, predicted_class=1,
+            class_weights={0: 1.0, 1: 2.0}
+        )
+        assert corr == pytest.approx(expected, abs=1e-10)
+
+    def test_exact_unweighted_with_class_weights(self):
+        """Unweighted distance with class weights: pure vote weighting."""
+        neighbors = [(0, 99.0, 1), (1, 0.01, 0), (2, 50.0, 1)]
+        # Unweighted ignores distance. class 1 count=2*weight, class 0 count=1*weight
+        # With weights {0: 1.0, 1: 4.0}: class 1 = 4.0+4.0=8.0, class 0 = 1.0
+        expected = 8.0 / 9.0
+        corr, _ = compute_correspondence(
+            neighbors, predicted_class=1, distance_weighted=False,
+            class_weights={0: 1.0, 1: 4.0}
+        )
+        assert corr == pytest.approx(expected, abs=1e-10)
+
+
 # --- compute_all_distances ---
 
 class TestComputeAllDistances:

@@ -15,7 +15,7 @@ setup(
     description="General-purpose case-based explainability for machine learning",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/case-explainer",
+    url="https://github.com/paulwhitten/case-explainer",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",
