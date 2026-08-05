@@ -7,8 +7,7 @@ name = "case-explainer"
 version = "0.1.0"
 description = "General-purpose case-based explainability for machine learning"
 readme = "README.md"
-license = "MIT"
-license-files = ["LICENSE"]
+license = { text = "MIT" }
 authors = [
     { name = "Paul Whitten", email = "pcw@case.edu" },
 ]
