@@ -329,6 +329,13 @@ explanation.plot()                  # Visualize (bar plot)
 - [x] Comparison guide (vs LIME/SHAP)
 - [x] Code coverage >90%
 
+### Phase 3: Testing & Quality
+- [x] Unit test suite (pytest, >90% coverage)
+- [x] Multi-Python version compatibility (3.8–3.12)
+- [x] Integration tests across validated domains
+- [ ] Privacy-preserving features (feature masking, differential privacy)
+- [ ] Approximate nearest neighbors (Annoy, FAISS) for large-scale data
+
 ### Phase 4: Release & Distribution
 - [x] PyPI package (`pip install case-explainer`)
 - [x] GitHub Pages documentation (https://paulwhitten.github.io/case-explainer/)
