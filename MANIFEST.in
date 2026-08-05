@@ -1,0 +1,22 @@
+# Include essential top-level files
+include README.md
+include LICENSE
+include pyproject.toml
+
+# Include notebooks
+recursive-include notebooks *.ipynb *.md
+
+# Include assets (data files used in examples)
+recursive-include assets *.csv *.md
+
+# Include documentation source
+recursive-include docs *.rst *.py *.md Makefile
+
+# Exclude build artifacts and caches
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *.so
+global-exclude .DS_Store
+prune dist
+prune build
+prune *.egg-info

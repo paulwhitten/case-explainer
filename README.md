@@ -28,7 +28,13 @@ You get: *"This sample is classified as X because it resembles these 5 training 
 ## Installation
 
 ```bash
-# From source (current development version)
+pip install case-explainer
+```
+
+Or, to install the latest development version from source:
+
+```bash
+git clone https://github.com/paulwhitten/case-explainer.git
 cd case-explainer
 pip install -e .
 
