@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 from .explanation import Explanation, Neighbor
 from .metrics import compute_correspondence
+from .activations import ActivationExtractor
 
 
 class CaseExplainer:
@@ -52,7 +53,10 @@ class CaseExplainer:
         scale_data: bool = True,
         class_weights: Optional[Dict[int, float]] = None,
         metadata: Optional[Dict[str, List]] = None,
-        n_jobs: int = -1
+        n_jobs: int = -1,
+        activation_extractor: Optional[Any] = None,
+        model: Optional[Any] = None,
+        blend_alpha: float = 0.0
     ):
         """
         Initialize CaseExplainer with training data and build k-NN index.
@@ -71,6 +75,18 @@ class CaseExplainer:
             metadata: Optional dict with metadata for each training sample
                      e.g., {'sample_id': [...], 'source': [...], ...}
             n_jobs: Number of parallel jobs for k-NN search (-1 = all CPUs)
+            activation_extractor: Optional ActivationExtractor instance. When
+                provided, the k-NN index is built on model activations (or a
+                blend of activations and features) instead of raw features.
+                Implements Caruana et al. (1999).
+            model: Trained model required when activation_extractor is set.
+                   Used to extract activations from the training data.
+            blend_alpha: Controls the feature/activation blend when
+                activation_extractor is set.
+                  - 0.0 (default): pure activations (Caruana 1999)
+                  - 1.0: pure features (same as not using an extractor)
+                  - 0.0 < alpha < 1.0: hybrid — index built on
+                    ``[sqrt(alpha)*X_scaled, sqrt(1-alpha)*A_scaled]``
         """
         # Convert inputs to numpy arrays
         if isinstance(X_train, pd.DataFrame):
@@ -102,6 +118,12 @@ class CaseExplainer:
         self.class_weights = class_weights or {}
         self.metadata = metadata or {}
         self.n_jobs = n_jobs
+        self.activation_extractor = activation_extractor
+        self.blend_alpha = float(blend_alpha)
+        if not 0.0 <= self.blend_alpha <= 1.0:
+            raise ValueError(f"blend_alpha must be in [0, 1], got {blend_alpha}")
+        if activation_extractor is not None and model is None:
+            raise ValueError("model must be provided when activation_extractor is set")
         
         # Validate metadata
         if self.metadata:
@@ -118,6 +140,38 @@ class CaseExplainer:
             self.scaler = None
             self.X_train_scaled = X_train.copy()
         
+        # --- Build the index data (features, activations, or hybrid blend) ---
+        if activation_extractor is not None:
+            logger.info(
+                "Extracting training activations with %s (blend_alpha=%.2f)...",
+                type(activation_extractor).__name__, blend_alpha
+            )
+            raw_activations = activation_extractor.fit_transform(model, X_train)
+            # Normalize activations independently to unit variance
+            self._act_scaler = StandardScaler()
+            A_scaled = self._act_scaler.fit_transform(raw_activations)
+
+            alpha = self.blend_alpha
+            if alpha == 0.0:
+                X_for_index = A_scaled
+            elif alpha == 1.0:
+                X_for_index = self.X_train_scaled
+            else:
+                X_for_index = np.hstack([
+                    np.sqrt(alpha) * self.X_train_scaled,
+                    np.sqrt(1.0 - alpha) * A_scaled,
+                ])
+            logger.info(
+                "Index space: %s, dims=%d",
+                "activations" if alpha == 0.0 else
+                "features" if alpha == 1.0 else
+                f"hybrid(alpha={alpha:.2f})",
+                X_for_index.shape[1],
+            )
+        else:
+            self._act_scaler = None
+            X_for_index = self.X_train_scaled
+
         # Build k-NN index using sklearn's NearestNeighbors
         # This is done once during initialization for efficiency
         logger.info("Building k-NN index (k=%d, metric=%s, algorithm=%s)...", k, metric, algorithm)
@@ -127,7 +181,7 @@ class CaseExplainer:
             algorithm=algorithm,
             n_jobs=n_jobs
         )
-        self.nn_index.fit(self.X_train_scaled)
+        self.nn_index.fit(X_for_index)
         logger.info("Index built on %d training samples", self.n_samples)
     
     def explain_instance(
@@ -175,7 +229,24 @@ class CaseExplainer:
             test_sample_scaled = self.scaler.transform([test_sample])[0]
         else:
             test_sample_scaled = test_sample.copy()
-        
+
+        # Build the query vector for the index (mirrors __init__ logic)
+        if self.activation_extractor is not None:
+            raw_act = self.activation_extractor.transform([test_sample])
+            A_scaled = self._act_scaler.transform(raw_act)
+            alpha = self.blend_alpha
+            if alpha == 0.0:
+                test_vec = A_scaled[0]
+            elif alpha == 1.0:
+                test_vec = test_sample_scaled
+            else:
+                test_vec = np.hstack([
+                    np.sqrt(alpha) * test_sample_scaled,
+                    np.sqrt(1.0 - alpha) * A_scaled[0],
+                ])
+        else:
+            test_vec = test_sample_scaled
+
         # Get prediction if not provided
         if predicted_class is None:
             if model is None:
@@ -187,7 +258,7 @@ class CaseExplainer:
         k_actual = min(k_actual, self.n_samples)  # Handle case where k > n_samples
         
         distances, indices = self.nn_index.kneighbors(
-            [test_sample_scaled],
+            [test_vec],
             n_neighbors=k_actual
         )
         distances = distances[0]
@@ -313,6 +384,11 @@ class CaseExplainer:
         }
     
     def __repr__(self) -> str:
+        mode = (
+            "activations" if (self.activation_extractor is not None and self.blend_alpha == 0.0)
+            else f"hybrid(alpha={self.blend_alpha:.2f})" if self.activation_extractor is not None
+            else "features"
+        )
         return (f"CaseExplainer(n_samples={self.n_samples}, "
                 f"n_features={self.n_features}, "
-                f"k={self.k}, algorithm='{self.algorithm}')")
+                f"k={self.k}, mode='{mode}', algorithm='{self.algorithm}')")

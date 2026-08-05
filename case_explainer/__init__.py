@@ -8,6 +8,21 @@ nearest neighbor correspondence.
 from .explainer import CaseExplainer
 from .explanation import Explanation
 from .metrics import compute_correspondence, euclidean_distance
+from .activations import (
+    ActivationExtractor,
+    SklearnMLPActivationExtractor,
+    DecisionTreeActivationExtractor,
+    CallableActivationExtractor,
+)
 
-__version__ = "0.1.0"
-__all__ = ["CaseExplainer", "Explanation", "compute_correspondence", "euclidean_distance"]
+__version__ = "0.1.1"
+__all__ = [
+    "CaseExplainer",
+    "Explanation",
+    "compute_correspondence",
+    "euclidean_distance",
+    "ActivationExtractor",
+    "SklearnMLPActivationExtractor",
+    "DecisionTreeActivationExtractor",
+    "CallableActivationExtractor",
+]
