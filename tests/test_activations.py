@@ -427,3 +427,176 @@ class TestCaseExplainerActivations:
         # All distances should be non-negative
         for n in exp.neighbors:
             assert n.distance >= 0.0
+
+
+# ---------------------------------------------------------------------------
+# SklearnMLPActivationExtractor — additional precision/contract tests
+# ---------------------------------------------------------------------------
+
+class TestSklearnMLPActivationExtractorContract:
+    def test_output_weight_normalization_invariant(self, iris, fitted_mlp):
+        """
+        After fit, output_weights must sum to n_hidden_last, i.e. the
+        normalization preserves total scale: sum(w_i) == len(w_i).
+        This ensures the weighted Euclidean distance stays in the same
+        ballpark as unweighted Euclidean on the same space.
+        """
+        X_train, _, _, _ = iris
+        ext = SklearnMLPActivationExtractor(use_output_weights=True)
+        ext.fit(fitted_mlp, X_train)
+        n_hidden_last = fitted_mlp.coefs_[-1].shape[0]  # 8
+        np.testing.assert_allclose(
+            ext._output_weights.sum(), n_hidden_last, rtol=1e-6
+        )
+
+    def test_fit_transform_equals_fit_then_transform(self, iris, fitted_mlp):
+        """fit_transform(X) must equal fit(X).transform(X)."""
+        X_train, _, _, _ = iris
+        ext1 = SklearnMLPActivationExtractor(use_output_weights=True)
+        ext2 = SklearnMLPActivationExtractor(use_output_weights=True)
+
+        combined = ext1.fit_transform(fitted_mlp, X_train)
+        separate = ext2.fit(fitted_mlp, X_train).transform(X_train)
+        np.testing.assert_allclose(combined, separate)
+
+    def test_deterministic_repeated_transform(self, iris, fitted_mlp):
+        """Two transform calls on the same input must give the same result."""
+        X_train, _, _, _ = iris
+        ext = SklearnMLPActivationExtractor()
+        ext.fit(fitted_mlp, X_train)
+        a1 = ext.transform(X_train)
+        a2 = ext.transform(X_train)
+        np.testing.assert_array_equal(a1, a2)
+
+    def test_single_sample_1d_input(self, iris, fitted_mlp):
+        """A flat 1D array (single sample) must not crash — atleast_2d handles it."""
+        X_train, X_test, _, _ = iris
+        ext = SklearnMLPActivationExtractor()
+        ext.fit(fitted_mlp, X_train)
+        # Pass a 1D array (shape (4,) for iris)
+        act = ext.transform(X_test[0])
+        assert act.shape == (1, 8)
+
+    def test_single_hidden_layer_mlp(self, iris):
+        """Edge case: MLP with a single hidden layer — last_hidden == layer 0."""
+        X_train, X_test, y_train, _ = iris
+        clf = MLPClassifier(hidden_layer_sizes=(12,), max_iter=500, random_state=1)
+        clf.fit(X_train, y_train)
+
+        ext = SklearnMLPActivationExtractor(use_output_weights=True)
+        acts = ext.fit_transform(clf, X_train)
+        assert acts.shape == (len(X_train), 12)
+        # Output weights should sum to 12
+        np.testing.assert_allclose(ext._output_weights.sum(), 12, rtol=1e-6)
+
+    def test_output_weights_ignored_for_non_last_layer(self, iris, fitted_mlp):
+        """
+        use_output_weights=True with layer=0 must not crash; it falls back to
+        uniform weights (output weights are only meaningful for last_hidden).
+        """
+        X_train, _, _, _ = iris
+        ext = SklearnMLPActivationExtractor(layer=0, use_output_weights=True)
+        acts = ext.fit_transform(fitted_mlp, X_train)
+        # First hidden layer has 16 units; uniform weights set lazily in transform
+        assert acts.shape == (len(X_train), 16)
+        np.testing.assert_array_equal(ext._output_weights, np.ones(16))
+
+
+# ---------------------------------------------------------------------------
+# DecisionTreeActivationExtractor — additional contract tests
+# ---------------------------------------------------------------------------
+
+class TestDecisionTreeActivationExtractorContract:
+    def test_fit_transform_equals_fit_then_transform(self, iris, fitted_tree):
+        X_train, _, _, _ = iris
+        ext1 = DecisionTreeActivationExtractor()
+        ext2 = DecisionTreeActivationExtractor()
+        combined = ext1.fit_transform(fitted_tree, X_train)
+        separate = ext2.fit(fitted_tree, X_train).transform(X_train)
+        np.testing.assert_array_equal(combined, separate)
+
+    def test_single_sample_1d_input(self, iris, fitted_tree):
+        X_train, X_test, _, _ = iris
+        ext = DecisionTreeActivationExtractor()
+        ext.fit(fitted_tree, X_train)
+        act = ext.transform(X_test[0])
+        assert act.ndim == 2
+        assert act.shape[0] == 1
+
+    def test_forest_one_hot_per_tree_sums_to_one(self, iris, fitted_forest):
+        """In one-hot mode each tree's block should sum to exactly 1 per sample."""
+        X_train, _, _, _ = iris
+        ext = DecisionTreeActivationExtractor(max_one_hot_dims=5000)
+        acts = ext.fit_transform(fitted_forest, X_train)
+        assert ext._encoding == "one_hot"
+
+        # Verify per-tree one-hot sums
+        offsets = list(ext._leaf_offsets) + [ext._total_dims]
+        for t in range(len(offsets) - 1):
+            block = acts[:, offsets[t]:offsets[t + 1]]
+            np.testing.assert_array_equal(
+                block.sum(axis=1), np.ones(len(X_train)),
+                err_msg=f"Tree {t} one-hot block does not sum to 1 per sample"
+            )
+
+
+# ---------------------------------------------------------------------------
+# CaseExplainer — additional integration/state tests
+# ---------------------------------------------------------------------------
+
+class TestCaseExplainerActivationsState:
+    def test_act_scaler_populated_when_extractor_set(self, iris, fitted_mlp):
+        """_act_scaler must be a fitted StandardScaler when extractor is used."""
+        from sklearn.preprocessing import StandardScaler
+        X_train, _, y_train, _ = iris
+        ext = SklearnMLPActivationExtractor()
+        explainer = CaseExplainer(
+            X_train, y_train, k=5,
+            activation_extractor=ext,
+            model=fitted_mlp,
+            blend_alpha=0.0,
+        )
+        assert isinstance(explainer._act_scaler, StandardScaler)
+        assert hasattr(explainer._act_scaler, "mean_")  # confirms it is fitted
+
+    def test_explain_instance_without_model_uses_predicted_class(self, iris, fitted_mlp):
+        """
+        When activation_extractor is set and no model is passed to
+        explain_instance, it should still work as long as predicted_class
+        is supplied — the extractor is already fitted at __init__ time.
+        """
+        X_train, X_test, y_train, _ = iris
+        ext = SklearnMLPActivationExtractor()
+        explainer = CaseExplainer(
+            X_train, y_train, k=5,
+            activation_extractor=ext,
+            model=fitted_mlp,
+            blend_alpha=0.0,
+        )
+        # Supply predicted_class explicitly; do NOT pass model to explain_instance
+        exp = explainer.explain_instance(X_test[0], predicted_class=0)
+        assert len(exp.neighbors) == 5
+
+    def test_blend_alpha_boundary_produces_same_results_as_pure_modes(
+        self, iris, fitted_mlp
+    ):
+        """blend_alpha=0.0 and blend_alpha=1.0 must match their pure counterparts."""
+        X_train, X_test, y_train, _ = iris
+
+        # blend_alpha=1.0 with extractor should match pure-feature explainer
+        ext_blend1 = SklearnMLPActivationExtractor(use_output_weights=False)
+        blend1 = CaseExplainer(
+            X_train, y_train, k=5,
+            activation_extractor=ext_blend1,
+            model=fitted_mlp,
+            blend_alpha=1.0,
+        )
+        feat_only = CaseExplainer(X_train, y_train, k=5)
+
+        blend1_ids = sorted(n.index for n in
+                            blend1.explain_instance(X_test[0], predicted_class=0).neighbors)
+        feat_ids  = sorted(n.index for n in
+                            feat_only.explain_instance(X_test[0], predicted_class=0).neighbors)
+        assert blend1_ids == feat_ids, (
+            "blend_alpha=1.0 should select the same neighbors as pure feature mode"
+        )
