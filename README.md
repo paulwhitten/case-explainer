@@ -1,8 +1,10 @@
 # Case-Explainer: General-Purpose Case-Based Explainability
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![PyPI version](https://img.shields.io/pypi/v/case-explainer.svg)](https://pypi.org/project/case-explainer/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-online-blue.svg)](https://paulwhitten.github.io/case-explainer/)
+[![CI](https://github.com/paulwhitten/case-explainer/actions/workflows/ci.yml/badge.svg)](https://github.com/paulwhitten/case-explainer/actions/workflows/ci.yml)
 
 Provides model-agnostic explanations through training set precedent and nearest neighbor correspondence.
 
@@ -327,10 +329,10 @@ explanation.plot()                  # Visualize (bar plot)
 - [x] Comparison guide (vs LIME/SHAP)
 - [x] Code coverage >90%
 
-### Phase 4: Release & Distribution - PLANNED
-- [ ] PyPI package
-- [ ] GitHub Pages documentation
-- [ ] CI/CD pipeline
+### Phase 4: Release & Distribution
+- [x] PyPI package (`pip install case-explainer`)
+- [x] GitHub Pages documentation (https://paulwhitten.github.io/case-explainer/)
+- [x] CI/CD pipeline (GitHub Actions: test matrix, publish to PyPI)
 - [ ] Zenodo DOI
 
 ## Citation
@@ -352,7 +354,7 @@ MIT License - see LICENSE file for details.
 
 ## Contributing
 
-Contributions welcome! This is currently in active development (Phase 1).
+Contributions welcome! Core functionality and release infrastructure are complete.
 
 **Priority areas:**
 - Additional distance metrics (Manhattan, Cosine)
