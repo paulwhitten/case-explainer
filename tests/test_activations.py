@@ -503,6 +503,114 @@ class TestSklearnMLPActivationExtractorContract:
 
 
 # ---------------------------------------------------------------------------
+# SklearnMLPActivationExtractor — all_hidden layer mode
+# ---------------------------------------------------------------------------
+
+class TestSklearnMLPAllHidden:
+    def test_output_shape_is_sum_of_all_layer_sizes(self, iris, fitted_mlp):
+        """
+        all_hidden concatenates all hidden layers: iris MLP is (16, 8),
+        so output should have 16+8 = 24 columns.
+        """
+        X_train, _, _, _ = iris
+        ext = SklearnMLPActivationExtractor(layer="all_hidden")
+        acts = ext.fit_transform(fitted_mlp, X_train)
+        expected_cols = sum(fitted_mlp.hidden_layer_sizes)  # 16+8=24
+        assert acts.shape == (len(X_train), expected_cols)
+
+    def test_last_layer_has_higher_position_weight_than_first(self, iris, fitted_mlp):
+        """
+        Position weights must increase monotonically: w_0 < w_1 < ... < w_last = 1.0.
+        """
+        X_train, _, _, _ = iris
+        ext = SklearnMLPActivationExtractor(layer="all_hidden")
+        ext.fit(fitted_mlp, X_train)
+        pw = ext._layer_position_weights
+        assert len(pw) == len(fitted_mlp.hidden_layer_sizes)
+        assert np.all(np.diff(pw) > 0), "Position weights not monotonically increasing"
+        np.testing.assert_allclose(pw[-1], 1.0, rtol=1e-6)
+
+    def test_last_layer_position_weight_is_one(self, iris, fitted_mlp):
+        X_train, _, _, _ = iris
+        ext = SklearnMLPActivationExtractor(layer="all_hidden")
+        ext.fit(fitted_mlp, X_train)
+        np.testing.assert_allclose(ext._layer_position_weights[-1], 1.0, rtol=1e-6)
+
+    def test_layer_scalers_fitted(self, iris, fitted_mlp):
+        """One fitted StandardScaler per hidden layer must be present."""
+        X_train, _, _, _ = iris
+        from sklearn.preprocessing import StandardScaler
+        ext = SklearnMLPActivationExtractor(layer="all_hidden")
+        ext.fit(fitted_mlp, X_train)
+        assert len(ext._layer_scalers) == len(fitted_mlp.hidden_layer_sizes)
+        for s in ext._layer_scalers:
+            assert isinstance(s, StandardScaler)
+            assert hasattr(s, "mean_")  # confirms fitted
+
+    def test_fit_transform_equals_fit_then_transform(self, iris, fitted_mlp):
+        X_train, _, _, _ = iris
+        ext1 = SklearnMLPActivationExtractor(layer="all_hidden")
+        ext2 = SklearnMLPActivationExtractor(layer="all_hidden")
+        combined = ext1.fit_transform(fitted_mlp, X_train)
+        separate = ext2.fit(fitted_mlp, X_train).transform(X_train)
+        np.testing.assert_allclose(combined, separate, rtol=1e-6)
+
+    def test_single_sample_1d_input(self, iris, fitted_mlp):
+        X_train, X_test, _, _ = iris
+        ext = SklearnMLPActivationExtractor(layer="all_hidden")
+        ext.fit(fitted_mlp, X_train)
+        act = ext.transform(X_test[0])  # 1D input
+        expected_cols = sum(fitted_mlp.hidden_layer_sizes)
+        assert act.shape == (1, expected_cols)
+
+    def test_all_hidden_and_last_hidden_differ(self, iris, fitted_mlp):
+        """
+        all_hidden must produce different activations than last_hidden
+        because it includes earlier layers.
+        """
+        X_train, _, _, _ = iris
+        ext_all  = SklearnMLPActivationExtractor(layer="all_hidden",   use_output_weights=False)
+        ext_last = SklearnMLPActivationExtractor(layer="last_hidden", use_output_weights=False)
+        acts_all  = ext_all.fit_transform(fitted_mlp, X_train)
+        acts_last = ext_last.fit_transform(fitted_mlp, X_train)
+        # Different dimensions → certainly different
+        assert acts_all.shape[1] != acts_last.shape[1]
+
+    def test_use_output_weights_false_sets_none(self, iris, fitted_mlp):
+        X_train, _, _, _ = iris
+        ext = SklearnMLPActivationExtractor(layer="all_hidden", use_output_weights=False)
+        ext.fit(fitted_mlp, X_train)
+        assert ext._all_hidden_output_weights is None
+
+    def test_use_output_weights_true_sets_last_layer_weights(self, iris, fitted_mlp):
+        X_train, _, _, _ = iris
+        ext = SklearnMLPActivationExtractor(layer="all_hidden", use_output_weights=True)
+        ext.fit(fitted_mlp, X_train)
+        n_last = fitted_mlp.hidden_layer_sizes[-1]  # 8
+        assert ext._all_hidden_output_weights is not None
+        assert len(ext._all_hidden_output_weights) == n_last
+        # Should also sum to n_last (same normalization as last_hidden mode)
+        np.testing.assert_allclose(
+            ext._all_hidden_output_weights.sum(), n_last, rtol=1e-6
+        )
+
+    def test_all_hidden_integration_with_case_explainer(self, iris, fitted_mlp):
+        """CaseExplainer built with all_hidden returns valid explanations."""
+        X_train, X_test, y_train, _ = iris
+        ext = SklearnMLPActivationExtractor(layer="all_hidden")
+        explainer = CaseExplainer(
+            X_train, y_train, k=5,
+            activation_extractor=ext,
+            model=fitted_mlp,
+            blend_alpha=0.0,
+        )
+        exp = explainer.explain_instance(X_test[0], model=fitted_mlp)
+        assert len(exp.neighbors) == 5
+        for n in exp.neighbors:
+            assert n.distance >= 0.0
+
+
+# ---------------------------------------------------------------------------
 # DecisionTreeActivationExtractor — additional contract tests
 # ---------------------------------------------------------------------------
 

@@ -132,13 +132,28 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
 
     Args:
         layer:
-            Which hidden layer to extract.  ``'last_hidden'`` (default) uses
-            the final hidden layer before the output.  An integer selects by
-            0-based index among the hidden layers.
+            Which hidden layer to extract.
+
+            * ``'last_hidden'`` *(default)* — the final hidden layer only.
+              This is the most decision-proximal representation and the mode
+              described in Caruana et al. (1999).
+            * ``'all_hidden'`` — ALL hidden layers are extracted,
+              independently standardised, then concatenated with
+              layer-position weights so that later (more decision-proximal)
+              layers dominate.  Layer *i* (0-indexed) receives weight
+              ``sqrt((i+1) / n_hidden_layers)``, so the last layer is always
+              weighted 1.0 and the first ``sqrt(1/n)``.
+              Use this when you want the k-NN index to account for the full
+              representational hierarchy of the network.
+            * An integer — selects a single hidden layer by 0-based index.
+
         use_output_weights:
-            If ``True`` (default), scale each hidden unit's activation by the
-            mean absolute magnitude of its output-layer connections, so that
-            units important to the prediction dominate the distance metric.
+            If ``True`` (default), scale each unit in the *last* hidden layer
+            by the mean absolute magnitude of its output-layer connections
+            (Caruana §5).  This applies to ``'last_hidden'`` and to the last
+            layer when ``'all_hidden'`` is used; it has no effect on earlier
+            layers because output-weight importance is only directly readable
+            from ``coefs_[-1]``.
     """
 
     def __init__(
@@ -149,14 +164,21 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
         self.layer = layer
         self.use_output_weights = use_output_weights
         self._model = None
-        self._output_weights: np.ndarray | None = None
+        # Single-layer modes
+        self._output_weights = None
+        # all_hidden mode
+        self._layer_scalers = None
+        self._layer_position_weights = None
+        self._all_hidden_output_weights = None
 
     # ------------------------------------------------------------------
     def fit(self, model, X: np.ndarray) -> "SklearnMLPActivationExtractor":
         self._validate(model)
         self._model = model
 
-        if self.use_output_weights and self.layer == "last_hidden":
+        if self.layer == "all_hidden":
+            self._fit_all_hidden(model, np.atleast_2d(np.asarray(X, dtype=float)))
+        elif self.use_output_weights and self.layer == "last_hidden":
             # coefs_[-1] shape: (n_hidden_last, n_outputs)
             # Mean absolute weight across output nodes → importance of each unit
             output_coefs = model.coefs_[-1]
@@ -177,9 +199,9 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
             )
         else:
             # Output-weight scaling requires last_hidden; defer to transform()
-            if self.use_output_weights and self.layer != "last_hidden":
+            if self.use_output_weights and isinstance(self.layer, int):
                 logger.warning(
-                    "use_output_weights=True is only supported for layer='last_hidden'. "
+                    "use_output_weights=True is only applied to the last hidden layer. "
                     "Using uniform weights for layer=%r.",
                     self.layer,
                 )
@@ -189,16 +211,80 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
         return self
 
     # ------------------------------------------------------------------
+    def _fit_all_hidden(
+        self, model, X: np.ndarray
+    ) -> None:
+        """Fit per-layer StandardScalers and layer-position weights."""
+        from sklearn.preprocessing import StandardScaler
+
+        n_hidden = model.n_layers_ - 2
+        layer_acts = self._forward_all_hidden(X)
+
+        # Independent StandardScaler per layer — each layer contributes
+        # unit variance before position weighting is applied.
+        self._layer_scalers = []
+        for acts in layer_acts:
+            scaler = StandardScaler()
+            scaler.fit(acts)
+            self._layer_scalers.append(scaler)
+
+        # Position weights: w_i = sqrt((i+1) / n_hidden)
+        # First layer → sqrt(1/n), last layer → 1.0
+        # In Euclidean distance: layer i contributes (i+1)/n_hidden * ||Δa_i||²
+        self._layer_position_weights = np.sqrt(
+            np.arange(1, n_hidden + 1, dtype=float) / n_hidden
+        )
+
+        # Output-weight scaling for the last hidden layer only (Caruana §5)
+        if self.use_output_weights:
+            output_coefs = model.coefs_[-1]
+            weights = np.mean(np.abs(output_coefs), axis=1)
+            total = weights.sum()
+            self._all_hidden_output_weights = (
+                weights / total * len(weights) if total > 0
+                else np.ones(len(weights))
+            )
+        else:
+            self._all_hidden_output_weights = None
+
+        logger.info(
+            "SklearnMLPActivationExtractor (all_hidden): %d layers, "
+            "position weights %s",
+            n_hidden,
+            np.round(self._layer_position_weights, 3),
+        )
+
+    # ------------------------------------------------------------------
     def transform(self, X: np.ndarray) -> np.ndarray:
         if self._model is None:
             raise RuntimeError("Call fit() before transform().")
         X = np.atleast_2d(np.asarray(X, dtype=float))
+
+        if self.layer == "all_hidden":
+            return self._transform_all_hidden(X)
+
         activations = self._forward_to_hidden(X)
         # Lazy-init uniform weights when shape wasn't known at fit time
         if self._output_weights is None:
             self._output_weights = np.ones(activations.shape[1])
         # Apply output-weight scaling (weighted Euclidean, Caruana §5)
         return activations * self._output_weights
+
+    # ------------------------------------------------------------------
+    def _transform_all_hidden(self, X: np.ndarray) -> np.ndarray:
+        """Transform using all hidden layers with layer-position weighting."""
+        layer_acts = self._forward_all_hidden(X)
+        n_layers = len(layer_acts)
+        parts = []
+        for i, (acts, scaler, pos_w) in enumerate(
+            zip(layer_acts, self._layer_scalers, self._layer_position_weights)
+        ):
+            scaled = scaler.transform(acts)
+            if i == n_layers - 1 and self._all_hidden_output_weights is not None:
+                # Output-weight scaling for the last layer (Caruana §5)
+                scaled = scaled * self._all_hidden_output_weights
+            parts.append(pos_w * scaled)
+        return np.hstack(parts)
 
     # ------------------------------------------------------------------
     def _forward_to_hidden(self, X: np.ndarray) -> np.ndarray:
@@ -214,7 +300,7 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
             target = max(0, min(int(self.layer), n_hidden_layers - 1))
         else:
             raise ValueError(
-                f"layer must be 'last_hidden' or int, got {self.layer!r}"
+                f"layer must be 'last_hidden', 'all_hidden', or int, got {self.layer!r}"
             )
 
         current = X.copy()
@@ -223,6 +309,19 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
             _apply_hidden_activation(current, model.activation)
 
         return current
+
+    # ------------------------------------------------------------------
+    def _forward_all_hidden(self, X: np.ndarray) -> list:
+        """Forward pass returning each hidden layer's activations as a list."""
+        model = self._model
+        n_hidden = model.n_layers_ - 2
+        results = []
+        current = X.copy()
+        for i in range(n_hidden):
+            current = current @ model.coefs_[i] + model.intercepts_[i]
+            _apply_hidden_activation(current, model.activation)
+            results.append(current.copy())
+        return results
 
     # ------------------------------------------------------------------
     @staticmethod
