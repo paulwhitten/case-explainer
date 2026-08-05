@@ -1,0 +1,370 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Case-Explainer Documentation &mdash; Case-Explainer 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=01f34227"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="CaseExplainer" href="api/explainer.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            Case-Explainer
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/explainer.html">CaseExplainer</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/explainer.html#case_explainer.CaseExplainer"><code class="docutils literal notranslate"><span class="pre">CaseExplainer</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/explainer.html#case_explainer.CaseExplainer.__init__"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/explainer.html#case_explainer.CaseExplainer.explain_instance"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.explain_instance()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/explainer.html#case_explainer.CaseExplainer.explain_batch"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.explain_batch()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/explainer.html#case_explainer.CaseExplainer.get_training_info"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.get_training_info()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/explainer.html#core-methods">Core Methods</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/explainer.html#building-the-explainer">Building the Explainer</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/explainer.html#id0"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/explainer.html#explaining-predictions">Explaining Predictions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/explainer.html#id1"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.explain_instance()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explainer.html#id2"><code class="docutils literal notranslate"><span class="pre">CaseExplainer.explain_batch()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/explainer.html#example-usage">Example Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/explainer.html#basic-example">Basic Example</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/explainer.html#batch-explanations">Batch Explanations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/explainer.html#working-with-metadata">Working with Metadata</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/explainer.html#configuration-options">Configuration Options</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/explainer.html#algorithm-selection">Algorithm Selection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/explainer.html#feature-scaling">Feature Scaling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/explainer.html#class-weights">Class Weights</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/explainer.html#notes">Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/explainer.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/explanation.html">Explanation Objects</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/explanation.html#explanation">Explanation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/explanation.html#case_explainer.Explanation"><code class="docutils literal notranslate"><span class="pre">Explanation</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.Explanation.__init__"><code class="docutils literal notranslate"><span class="pre">Explanation.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.Explanation.get_predicted_class_name"><code class="docutils literal notranslate"><span class="pre">Explanation.get_predicted_class_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.Explanation.get_true_class_name"><code class="docutils literal notranslate"><span class="pre">Explanation.get_true_class_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.Explanation.is_correct"><code class="docutils literal notranslate"><span class="pre">Explanation.is_correct()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.Explanation.summary"><code class="docutils literal notranslate"><span class="pre">Explanation.summary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.Explanation.to_dict"><code class="docutils literal notranslate"><span class="pre">Explanation.to_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.Explanation.plot"><code class="docutils literal notranslate"><span class="pre">Explanation.plot()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/explanation.html#key-attributes">Key Attributes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.Explanation.correspondence"><code class="docutils literal notranslate"><span class="pre">Explanation.correspondence</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.Explanation.correspondence_interpretation"><code class="docutils literal notranslate"><span class="pre">Explanation.correspondence_interpretation</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.Explanation.neighbors"><code class="docutils literal notranslate"><span class="pre">Explanation.neighbors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.Explanation.predicted_class"><code class="docutils literal notranslate"><span class="pre">Explanation.predicted_class</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.Explanation.true_class"><code class="docutils literal notranslate"><span class="pre">Explanation.true_class</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/explanation.html#methods">Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#id0"><code class="docutils literal notranslate"><span class="pre">Explanation.is_correct()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#id1"><code class="docutils literal notranslate"><span class="pre">Explanation.summary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#id2"><code class="docutils literal notranslate"><span class="pre">Explanation.to_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#id3"><code class="docutils literal notranslate"><span class="pre">Explanation.plot()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/explanation.html#neighbor">Neighbor</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/explanation.html#case_explainer.explanation.Neighbor"><code class="docutils literal notranslate"><span class="pre">Neighbor</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.explanation.Neighbor.__init__"><code class="docutils literal notranslate"><span class="pre">Neighbor.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/explanation.html#id4">Key Attributes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.Neighbor.index"><code class="docutils literal notranslate"><span class="pre">Neighbor.index</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.Neighbor.distance"><code class="docutils literal notranslate"><span class="pre">Neighbor.distance</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.Neighbor.label"><code class="docutils literal notranslate"><span class="pre">Neighbor.label</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.Neighbor.features"><code class="docutils literal notranslate"><span class="pre">Neighbor.features</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/explanation.html#case_explainer.Neighbor.metadata"><code class="docutils literal notranslate"><span class="pre">Neighbor.metadata</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/explanation.html#example-usage">Example Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/explanation.html#accessing-explanation-details">Accessing Explanation Details</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/explanation.html#inspecting-neighbors">Inspecting Neighbors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/explanation.html#exporting-explanations">Exporting Explanations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/explanation.html#generating-summaries">Generating Summaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/explanation.html#visualizing-explanations">Visualizing Explanations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/explanation.html#batch-analysis">Batch Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/explanation.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/metrics.html">Metrics</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/metrics.html#functions">Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#compute-correspondence">compute_correspondence</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/metrics.html#case_explainer.metrics.compute_correspondence"><code class="docutils literal notranslate"><span class="pre">compute_correspondence()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#euclidean-distance">euclidean_distance</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/metrics.html#case_explainer.metrics.euclidean_distance"><code class="docutils literal notranslate"><span class="pre">euclidean_distance()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/metrics.html#theory">Theory</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#correspondence-metric">Correspondence Metric</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/metrics.html#mathematical-definition">Mathematical Definition</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/metrics.html#interpretation">Interpretation</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#distance-weighting">Distance Weighting</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/metrics.html#example-usage">Example Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#computing-correspondence">Computing Correspondence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#distance-computation">Distance Computation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#understanding-correspondence-behavior">Understanding Correspondence Behavior</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/metrics.html#class-weights">Class Weights</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/metrics.html#notes">Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/metrics.html#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Additional Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="citation.html">Citation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="citation.html#bibtex">BibTeX</a></li>
+<li class="toctree-l2"><a class="reference internal" href="citation.html#related-publications">Related Publications</a></li>
+<li class="toctree-l2"><a class="reference internal" href="citation.html#acknowledgments">Acknowledgments</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="license.html#mit-license">MIT License</a></li>
+<li class="toctree-l2"><a class="reference internal" href="license.html#what-this-means">What This Means</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">Case-Explainer</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Case-Explainer Documentation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="case-explainer-documentation">
+<h1>Case-Explainer Documentation<a class="headerlink" href="#case-explainer-documentation" title="Link to this heading"></a></h1>
+<p><strong>Case-Explainer</strong> provides model-agnostic explanations through training set precedent and nearest neighbor correspondence.</p>
+<a class="reference external image-reference" href="https://www.python.org/downloads/"><img alt="Python 3.8+" src="https://img.shields.io/badge/python-3.8+-blue.svg" />
+</a>
+<a class="reference external image-reference" href="https://opensource.org/licenses/MIT"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg" />
+</a>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>While some explainability methods provide feature importance scores, case-based explainability answers:
+<strong>“Why was this prediction made?”</strong> by showing similar training examples.</p>
+<p>Instead of: <em>“Feature X has importance 0.45”</em></p>
+<p>You get: <em>“This sample is classified as X because it resembles these 5 training examples”</em></p>
+</section>
+<section id="key-features">
+<h2>Key Features<a class="headerlink" href="#key-features" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Model-agnostic</strong>: Works with any classifier (sklearn, XGBoost, neural networks, etc.)</p></li>
+<li><p><strong>Correspondence metric</strong>: Quantifies agreement between prediction and neighbors</p></li>
+<li><p><strong>Multiple indexing strategies</strong>: K-D Tree, Ball Tree, or brute force</p></li>
+<li><p><strong>Automatic scaling</strong>: Optional feature standardization</p></li>
+<li><p><strong>Metadata tracking</strong>: Attach provenance data to training samples</p></li>
+<li><p><strong>Sklearn-compatible API</strong>: Familiar interface for ML practitioners</p></li>
+<li><p><strong>Batch explanations</strong>: Explain multiple predictions efficiently</p></li>
+</ul>
+</section>
+<section id="quick-start">
+<h2>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">case_explainer</span><span class="w"> </span><span class="kn">import</span> <span class="n">CaseExplainer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_iris</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.model_selection</span><span class="w"> </span><span class="kn">import</span> <span class="n">train_test_split</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.ensemble</span><span class="w"> </span><span class="kn">import</span> <span class="n">RandomForestClassifier</span>
+
+<span class="c1"># Load data</span>
+<span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">load_iris</span><span class="p">(</span><span class="n">return_X_y</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">X_train</span><span class="p">,</span> <span class="n">X_test</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">y_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">test_size</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+
+<span class="c1"># Train classifier</span>
+<span class="n">clf</span> <span class="o">=</span> <span class="n">RandomForestClassifier</span><span class="p">()</span>
+<span class="n">clf</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+
+<span class="c1"># Create explainer</span>
+<span class="n">explainer</span> <span class="o">=</span> <span class="n">CaseExplainer</span><span class="p">(</span>
+    <span class="n">X_train</span><span class="o">=</span><span class="n">X_train</span><span class="p">,</span>
+    <span class="n">y_train</span><span class="o">=</span><span class="n">y_train</span><span class="p">,</span>
+    <span class="n">feature_names</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;sepal_len&#39;</span><span class="p">,</span> <span class="s1">&#39;sepal_width&#39;</span><span class="p">,</span> <span class="s1">&#39;petal_len&#39;</span><span class="p">,</span> <span class="s1">&#39;petal_width&#39;</span><span class="p">],</span>
+    <span class="n">algorithm</span><span class="o">=</span><span class="s1">&#39;kd_tree&#39;</span>
+<span class="p">)</span>
+
+<span class="c1"># Explain a prediction</span>
+<span class="n">explanation</span> <span class="o">=</span> <span class="n">explainer</span><span class="o">.</span><span class="n">explain_instance</span><span class="p">(</span><span class="n">X_test</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">k</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="n">clf</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Correspondence: </span><span class="si">{</span><span class="n">explanation</span><span class="o">.</span><span class="n">correspondence</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">explanation</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+</pre></div>
+</div>
+</section>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># From source (current development version)</span>
+<span class="nb">cd</span><span class="w"> </span><span class="k">case</span>-explainer
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+
+<span class="c1"># Dependencies</span>
+pip<span class="w"> </span>install<span class="w"> </span>numpy<span class="w"> </span>scipy<span class="w"> </span>scikit-learn<span class="w"> </span>matplotlib<span class="w"> </span>pandas
+</pre></div>
+</div>
+</section>
+<section id="performance">
+<h2>Performance<a class="headerlink" href="#performance" title="Link to this heading"></a></h2>
+<p>Validated across multiple domains (single runs on reference hardware):</p>
+<ul class="simple">
+<li><p><strong>Hardware Trojan Detection</strong>: 99.9% average correspondence, 25.7 ms/sample</p></li>
+<li><p><strong>Credit Card Fraud Detection</strong>: 100% average correspondence, 36.4 ms/sample</p></li>
+<li><p><strong>Medical Diagnosis (Breast Cancer)</strong>: 93.3% average correspondence, 25.9 ms/sample</p></li>
+<li><p><strong>Scalability</strong>: Tested up to 200k training samples</p></li>
+</ul>
+<p><strong>Note on Correspondence</strong>: This metric measures agreement between predictions and retrieved
+neighbors, not prediction accuracy or quality. High correspondence indicates consistency with
+training data patterns.</p>
+</section>
+<section id="contents">
+<h2>Contents<a class="headerlink" href="#contents" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/explainer.html">CaseExplainer</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/explainer.html#case_explainer.CaseExplainer"><code class="docutils literal notranslate"><span class="pre">CaseExplainer</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/explainer.html#core-methods">Core Methods</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/explainer.html#example-usage">Example Usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/explainer.html#configuration-options">Configuration Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/explainer.html#notes">Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/explainer.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/explanation.html">Explanation Objects</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/explanation.html#explanation">Explanation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/explanation.html#neighbor">Neighbor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/explanation.html#example-usage">Example Usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/explanation.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/metrics.html">Metrics</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/metrics.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/metrics.html#theory">Theory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/metrics.html#example-usage">Example Usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/metrics.html#notes">Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/metrics.html#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Additional Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="citation.html">Citation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+</ul>
+</div>
+</section>
+</section>
+<section id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Link to this heading"></a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="api/explainer.html" class="btn btn-neutral float-right" title="CaseExplainer" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Paul Whitten, Francis Wolff, Chris Papachristou.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
