@@ -26,6 +26,7 @@ You get: *"This sample is classified as X because it resembles these 5 training 
 - **Metadata tracking**: Attach provenance data to training samples
 - **Sklearn-compatible API**: Familiar interface for ML practitioners
 - **Batch explanations**: Explain multiple predictions efficiently
+- **Activation-based similarity**: For neural networks, retrieve neighbors by hidden-layer activations (Caruana et al. 1999) — captures model reasoning, not just input proximity
 
 ## Installation
 
@@ -99,6 +100,45 @@ The `+1` offset in the denominator prevents division by zero when a test sample 
 - **`kd_tree`**: Fast for low-dimensional data (<20 features)
 - **`ball_tree`**: Better for high-dimensional data
 - **`brute`**: Exact search for small datasets (<10k samples)
+
+### Activation-Based Similarity (Neural Networks)
+
+For sklearn `MLPClassifier` models you can optionally retrieve neighbors by
+**hidden-layer activations** — the model's internal representation — instead of
+raw input features.  This reveals *why the model classified* a sample, rather than
+how it compares on the original feature scale.
+
+```python
+from sklearn.neural_network import MLPClassifier
+from case_explainer import CaseExplainer
+
+mlp = MLPClassifier(hidden_layer_sizes=(64, 32, 16), random_state=42)
+mlp.fit(X_train, y_train)
+
+# Last hidden layer — Caruana et al. (1999)
+explainer = CaseExplainer(
+    X_train, y_train,
+    activation_layer="last_hidden",
+    model=mlp,
+)
+
+# All hidden layers with position weighting — later layers dominate
+explainer_deep = CaseExplainer(
+    X_train, y_train,
+    activation_layer="all_hidden",   # w_i = sqrt((i+1)/n_layers)
+    model=mlp,
+)
+
+# Hybrid: blend features (30%) and activations (70%)
+explainer_hybrid = CaseExplainer(
+    X_train, y_train,
+    activation_layer="last_hidden",
+    model=mlp,
+    blend_alpha=0.3,                 # 0.0 = pure activations, 1.0 = pure features
+)
+```
+
+See [notebooks/02_breast_cancer_tutorial.ipynb](notebooks/02_breast_cancer_tutorial.ipynb) for a full worked comparison.
 
 ## Examples
 
@@ -185,13 +225,18 @@ Unlike LIME/SHAP which only show feature importance, case-explainer exposes trai
 
 ```python
 explainer = CaseExplainer(
-    X_train,                # Training features
-    y_train,                # Training labels
-    feature_names=None,     # Optional feature names
-    class_names=None,       # Optional class names {0: 'cat', 1: 'dog'}
-    algorithm='kd_tree',    # Indexing strategy
-    scale_data=True,        # Standardize features
-    metadata=None           # Optional provenance data
+    X_train,                    # Training features
+    y_train,                    # Training labels
+    feature_names=None,         # Optional feature names
+    class_names=None,           # Optional class names {0: 'cat', 1: 'dog'}
+    algorithm='kd_tree',        # Indexing strategy
+    scale_data=True,            # Standardize features
+    metadata=None,              # Optional provenance data
+    # Activation-based similarity (Caruana et al. 1999) — MLP only
+    activation_layer=None,      # 'last_hidden', 'all_hidden', or int layer index
+    use_output_weights=True,    # Caruana §5 output-connection weighting
+    model=None,                 # Fitted MLPClassifier (required with activation_layer)
+    blend_alpha=0.0,            # 0.0=pure activations, 1.0=pure features
 )
 ```
 

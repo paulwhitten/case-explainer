@@ -708,3 +708,68 @@ class TestCaseExplainerActivationsState:
         assert blend1_ids == feat_ids, (
             "blend_alpha=1.0 should select the same neighbors as pure feature mode"
         )
+
+
+class TestActivationLayerConvenienceParam:
+    """Tests for the activation_layer / use_output_weights shorthand on CaseExplainer."""
+
+    def test_activation_layer_creates_extractor(self, iris, fitted_mlp):
+        """activation_layer shorthand should produce the same explainer as explicit extractor."""
+        X_train, _, y_train, _ = iris
+        explainer = CaseExplainer(
+            X_train, y_train, k=5,
+            activation_layer="last_hidden",
+            model=fitted_mlp,
+        )
+        assert explainer.activation_extractor is not None
+
+    def test_activation_layer_matches_explicit_extractor(self, iris, fitted_mlp):
+        """Convenience param must yield identical neighbors to explicit extractor."""
+        X_train, X_test, y_train, _ = iris
+        ext = SklearnMLPActivationExtractor(layer="last_hidden", use_output_weights=True)
+        explicit = CaseExplainer(
+            X_train, y_train, k=5,
+            activation_extractor=ext,
+            model=fitted_mlp,
+        )
+        shorthand = CaseExplainer(
+            X_train, y_train, k=5,
+            activation_layer="last_hidden",
+            use_output_weights=True,
+            model=fitted_mlp,
+        )
+        exp_e = explicit.explain_instance(X_test[0], predicted_class=0)
+        exp_s = shorthand.explain_instance(X_test[0], predicted_class=0)
+        assert sorted(n.index for n in exp_e.neighbors) == sorted(n.index for n in exp_s.neighbors)
+
+    def test_activation_layer_all_hidden(self, iris, fitted_mlp):
+        """all_hidden mode should work via activation_layer shorthand."""
+        X_train, X_test, y_train, _ = iris
+        explainer = CaseExplainer(
+            X_train, y_train, k=5,
+            activation_layer="all_hidden",
+            model=fitted_mlp,
+        )
+        exp = explainer.explain_instance(X_test[0], predicted_class=0)
+        assert len(exp.neighbors) == 5
+
+    def test_activation_layer_and_extractor_raises(self, iris, fitted_mlp):
+        """Providing both activation_layer and activation_extractor must raise ValueError."""
+        X_train, _, y_train, _ = iris
+        ext = SklearnMLPActivationExtractor()
+        with pytest.raises(ValueError, match="not both"):
+            CaseExplainer(
+                X_train, y_train, k=5,
+                activation_extractor=ext,
+                activation_layer="last_hidden",
+                model=fitted_mlp,
+            )
+
+    def test_activation_layer_without_model_raises(self, iris):
+        """activation_layer without model must raise ValueError."""
+        X_train, _, y_train, _ = iris
+        with pytest.raises(ValueError, match="model must be provided"):
+            CaseExplainer(
+                X_train, y_train, k=5,
+                activation_layer="last_hidden",
+            )

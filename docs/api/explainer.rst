@@ -182,6 +182,96 @@ Notes
 * **Medium (70-85%)**: Moderate agreement, reasonable confidence
 * **Low (<70%)**: Weak agreement, prediction may be uncertain or unusual
 
+Activation-Based Similarity
+----------------------------
+
+When your model is a neural network, you can optionally build the k-NN index on
+the model's **hidden-layer activations** instead of raw input features — an approach
+described by Caruana et al. (1999).  Activation-based retrieval captures the model's
+*internal reasoning* rather than surface feature proximity.
+
+Quick Start — convenience shorthand
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+   from sklearn.neural_network import MLPClassifier
+   from case_explainer import CaseExplainer
+
+   mlp = MLPClassifier(hidden_layer_sizes=(64, 32, 16), random_state=42)
+   mlp.fit(X_train, y_train)
+
+   # Pure activation-based similarity (Caruana 1999) — last hidden layer
+   explainer = CaseExplainer(
+       X_train, y_train,
+       activation_layer="last_hidden",   # convenience shorthand
+       use_output_weights=True,          # Caruana §5 output-weight scaling
+       model=mlp,
+   )
+
+   # All hidden layers with layer-position weighting
+   explainer_deep = CaseExplainer(
+       X_train, y_train,
+       activation_layer="all_hidden",    # later layers weighted more heavily
+       model=mlp,
+   )
+
+   explanation = explainer.explain_instance(X_test[0], model=mlp)
+
+Layer modes
+^^^^^^^^^^^
+
++----------------------+----------------------------------------------------------+
+| ``activation_layer`` | Description                                              |
++======================+==========================================================+
+| ``'last_hidden'``    | Last hidden layer only — default Caruana (1999) method.  |
+|                      | ``use_output_weights=True`` applies §5 scaling.          |
++----------------------+----------------------------------------------------------+
+| ``'all_hidden'``     | Concatenates all hidden layers, each independently       |
+|                      | standardised, then scaled by                             |
+|                      | :math:`w_i = \sqrt{(i+1)/n}`.  Later layers dominate:   |
+|                      | :math:`d^2 = \sum_i \frac{i+1}{n} \|\Delta a_i\|^2`     |
++----------------------+----------------------------------------------------------+
+| ``int``              | Specific hidden layer by 0-based index.                  |
++----------------------+----------------------------------------------------------+
+
+Using an explicit extractor
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For full control, pass a :class:`~case_explainer.SklearnMLPActivationExtractor`
+directly:
+
+.. code-block:: python
+
+   from case_explainer import CaseExplainer, SklearnMLPActivationExtractor
+
+   ext = SklearnMLPActivationExtractor(layer="all_hidden", use_output_weights=True)
+   explainer = CaseExplainer(
+       X_train, y_train,
+       activation_extractor=ext,
+       model=mlp,
+   )
+
+Feature/activation hybrid
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``blend_alpha`` mixes feature-space and activation-space distances:
+
+.. code-block:: python
+
+   # 30% features, 70% activations
+   explainer = CaseExplainer(
+       X_train, y_train,
+       activation_layer="last_hidden",
+       model=mlp,
+       blend_alpha=0.3,
+   )
+
+:math:`d^2 = \alpha\,d_\text{feat}^2 + (1-\alpha)\,d_\text{act}^2`
+
+``blend_alpha=0.0`` is pure activations; ``blend_alpha=1.0`` is pure features
+(identical to not setting ``activation_layer`` at all).
+
 See Also
 --------
 

@@ -56,7 +56,9 @@ class CaseExplainer:
         n_jobs: int = -1,
         activation_extractor: Optional[Any] = None,
         model: Optional[Any] = None,
-        blend_alpha: float = 0.0
+        blend_alpha: float = 0.0,
+        activation_layer: Optional[Union[str, int]] = None,
+        use_output_weights: bool = True
     ):
         """
         Initialize CaseExplainer with training data and build k-NN index.
@@ -87,6 +89,16 @@ class CaseExplainer:
                   - 1.0: pure features (same as not using an extractor)
                   - 0.0 < alpha < 1.0: hybrid — index built on
                     ``[sqrt(alpha)*X_scaled, sqrt(1-alpha)*A_scaled]``
+            activation_layer: Convenience shorthand for
+                ``SklearnMLPActivationExtractor(layer=..., use_output_weights=...)``.
+                Accepted values: ``'last_hidden'`` (default), ``'all_hidden'``
+                (concatenated, position-weighted), or an integer layer index.
+                Mutually exclusive with ``activation_extractor``.
+                Requires ``model`` (a fitted ``MLPClassifier``) to also be set.
+            use_output_weights: When ``activation_layer`` is used, controls
+                whether per-unit output-connection weighting (Caruana §5) is
+                applied to the last hidden layer.  Ignored when
+                ``activation_extractor`` is supplied directly.
         """
         # Convert inputs to numpy arrays
         if isinstance(X_train, pd.DataFrame):
@@ -122,6 +134,17 @@ class CaseExplainer:
         self.blend_alpha = float(blend_alpha)
         if not 0.0 <= self.blend_alpha <= 1.0:
             raise ValueError(f"blend_alpha must be in [0, 1], got {blend_alpha}")
+        if activation_extractor is not None and activation_layer is not None:
+            raise ValueError(
+                "Provide either activation_extractor or activation_layer, not both"
+            )
+        if activation_layer is not None:
+            from .activations import SklearnMLPActivationExtractor
+            activation_extractor = SklearnMLPActivationExtractor(
+                layer=activation_layer,
+                use_output_weights=use_output_weights,
+            )
+            self.activation_extractor = activation_extractor
         if activation_extractor is not None and model is None:
             raise ValueError("model must be provided when activation_extractor is set")
         
