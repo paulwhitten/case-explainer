@@ -74,6 +74,8 @@ docs/_static/
 docs/_templates/
 docs/.doctrees/
 *.doctree
+docs/procamiasymp00004-0249-2.pdf
+docs/procamiasymp00004-0249-2.txt
 
 # PyBuilder
 target/
