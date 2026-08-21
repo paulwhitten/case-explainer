@@ -6,10 +6,7 @@ The main class for creating case-based explanations.
 .. currentmodule:: case_explainer
 
 .. autoclass:: CaseExplainer
-   :members:
-   :undoc-members:
    :show-inheritance:
-   :special-members: __init__
 
 Core Methods
 ------------
@@ -25,6 +22,21 @@ Explaining Predictions
 .. automethod:: CaseExplainer.explain_instance
 
 .. automethod:: CaseExplainer.explain_batch
+
+Retrieval Configurations
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: HiddenActivationRetrieval
+    :members:
+
+.. autoclass:: CustomActivationRetrieval
+    :members:
+
+.. autoclass:: TreeLeafRetrieval
+    :members:
+
+.. autoclass:: ForestProximityRetrieval
+    :members:
 
 Example Usage
 -------------
@@ -186,54 +198,80 @@ Activation-Based Similarity
 ----------------------------
 
 When your model is a neural network, you can optionally build the k-NN index on
-the model's **hidden-layer activations** instead of raw input features — an approach
-described by Caruana et al. (1999).  Activation-based retrieval captures the model's
-*internal reasoning* rather than surface feature proximity.
+the model's **hidden-layer activations** instead of raw input features, an approach
+described by Caruana et al. (1999). The retrieved cases show consequences of the
+model's learned representation. They do not expose its complete internal reasoning.
 
-Quick Start — convenience shorthand
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Quick Start
+^^^^^^^^^^^
 
 .. code-block:: python
 
    from sklearn.neural_network import MLPClassifier
-   from case_explainer import CaseExplainer
+    from case_explainer import CaseExplainer, HiddenActivationRetrieval
 
    mlp = MLPClassifier(hidden_layer_sizes=(64, 32, 16), random_state=42)
    mlp.fit(X_train, y_train)
 
-   # Pure activation-based similarity (Caruana 1999) — last hidden layer
+   # Pure activation-based similarity, using the last hidden layer
    explainer = CaseExplainer(
        X_train, y_train,
-       activation_layer="last_hidden",   # convenience shorthand
-       use_output_weights=True,          # Caruana §5 output-weight scaling
-       model=mlp,
+       retrieval=HiddenActivationRetrieval(
+           model=mlp,
+           layer="last_hidden",
+           use_output_weights=True,
+       ),
    )
 
-   # All hidden layers with layer-position weighting
+   # All-layer aggregation is a library extension.
    explainer_deep = CaseExplainer(
        X_train, y_train,
-       activation_layer="all_hidden",    # later layers weighted more heavily
-       model=mlp,
+       retrieval=HiddenActivationRetrieval(model=mlp, layer="all_hidden"),
    )
 
-   explanation = explainer.explain_instance(X_test[0], model=mlp)
+   explanation = explainer.explain_instance(X_test[0])
+
+Output weighting
+^^^^^^^^^^^^^^^^
+
+``output_weighting="mean_abs"`` is the compatibility default. For multiclass
+models, it averages each hidden unit's absolute connections across output
+classes and uses one retrieval index for every query.
+
+``output_weighting="predicted_class"`` weights hidden units using only the
+predicted class's output connections. The explainer builds one index per class
+and selects the matching index after prediction. sklearn class labels are
+mapped through ``model.classes_``, so labels do not need to be contiguous or
+zero-based. Binary sklearn MLP classifiers have one output column and therefore
+use the same connection magnitudes for both labels.
+
+.. code-block:: python
+
+    retrieval = HiddenActivationRetrieval(
+         model=mlp,
+         output_weighting="predicted_class",
+    )
+    explainer = CaseExplainer(X_train, y_train, retrieval=retrieval)
+
+Set ``output_weighting="none"`` to use standardized activations without output
+connection weighting. ``use_output_weights=False`` remains a compatibility
+alias for this mode.
 
 Layer modes
 ^^^^^^^^^^^
 
-+----------------------+----------------------------------------------------------+
-| ``activation_layer`` | Description                                              |
-+======================+==========================================================+
-| ``'last_hidden'``    | Last hidden layer only — default Caruana (1999) method.  |
-|                      | ``use_output_weights=True`` applies §5 scaling.          |
-+----------------------+----------------------------------------------------------+
-| ``'all_hidden'``     | Concatenates all hidden layers, each independently       |
-|                      | standardised, then scaled by                             |
-|                      | :math:`w_i = \sqrt{(i+1)/n}`.  Later layers dominate:   |
-|                      | :math:`d^2 = \sum_i \frac{i+1}{n} \|\Delta a_i\|^2`     |
-+----------------------+----------------------------------------------------------+
-| ``int``              | Specific hidden layer by 0-based index.                  |
-+----------------------+----------------------------------------------------------+
+``'last_hidden'``
+    Uses the last hidden layer, based on Caruana (1999).
+    ``use_output_weights=True`` applies Section 5 scaling.
+
+``'all_hidden'``
+    Concatenates independently standardized hidden layers and scales layer
+    :math:`i` by :math:`w_i = \sqrt{(i+1)/n}`. This is a library extension with
+    :math:`d^2 = \sum_i \frac{i+1}{n} \|\Delta a_i\|^2`.
+
+``int``
+    Selects a specific hidden layer by 0-based index. Out-of-range indices raise
+    ``ValueError``.
 
 Using an explicit extractor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -262,15 +300,85 @@ Feature/activation hybrid
    # 30% features, 70% activations
    explainer = CaseExplainer(
        X_train, y_train,
-       activation_layer="last_hidden",
-       model=mlp,
-       blend_alpha=0.3,
+       retrieval=HiddenActivationRetrieval(model=mlp, blend_alpha=0.3),
    )
 
 :math:`d^2 = \alpha\,d_\text{feat}^2 + (1-\alpha)\,d_\text{act}^2`
 
 ``blend_alpha=0.0`` is pure activations; ``blend_alpha=1.0`` is pure features
-(identical to not setting ``activation_layer`` at all).
+(identical to feature retrieval). Hybrid retrieval is a library extension and
+is not defined by Caruana et al. (1999).
+
+Model preprocessing
+^^^^^^^^^^^^^^^^^^^
+
+When an MLP was trained on transformed features, provide the fitted transformer:
+
+.. code-block:: python
+
+   retrieval = HiddenActivationRetrieval(
+       model=mlp,
+       input_transform=fitted_scaler,
+   )
+   explainer = CaseExplainer(X_train, y_train, retrieval=retrieval)
+
+The transform is applied before activation extraction and prediction. The
+``scale_data`` parameter remains responsible only for feature-space retrieval.
+
+Decision-tree leaves
+^^^^^^^^^^^^^^^^^^^^
+
+For a fitted sklearn decision tree, paper-faithful retrieval returns only cases
+from the query's leaf. If fewer than ``k`` cases occupy that leaf, the default
+behavior returns fewer cases rather than crossing the leaf boundary.
+If the retained case base contains no case from the query leaf, the explanation
+contains no neighbors and reports correspondence as undefined.
+
+.. code-block:: python
+
+   from case_explainer import TreeLeafRetrieval
+
+   explainer = CaseExplainer(
+       X_train, y_train,
+       retrieval=TreeLeafRetrieval(model=tree, overflow="truncate"),
+   )
+
+Set ``overflow="nearest"`` to explicitly fill the remaining positions with
+feature-nearest cases from other leaves.
+
+Random-forest proximity
+^^^^^^^^^^^^^^^^^^^^^^^
+
+For a fitted sklearn random forest, proximity is the fraction of trees in
+which two samples reach the same leaf. ``ForestProximityRetrieval`` retrieves
+the cases with the smallest distance
+
+.. math::
+
+    d(x,z) = 1 - \frac{1}{T}\sum_{t=1}^{T}
+    \mathbf{1}\{\ell_t(x)=\ell_t(z)\}.
+
+.. code-block:: python
+
+    from case_explainer import ForestProximityRetrieval
+
+    explainer = CaseExplainer(
+         X_train, y_train,
+         retrieval=ForestProximityRetrieval(model=forest),
+    )
+
+This strategy compares leaf identities directly. It does not treat tree node
+identifiers as numeric coordinates.
+
+Convenience aliases
+^^^^^^^^^^^^^^^^^^^
+
+The existing ``activation_extractor``, ``activation_layer``,
+``use_output_weights``, and ``blend_alpha`` constructor path remains supported
+through version 0.2 and emits ``DeprecationWarning`` when activation retrieval
+is selected through that path. It will be removed no earlier than version 0.3.
+New code should use ``HiddenActivationRetrieval`` because it keeps one retrieval
+strategy together and makes preprocessing ownership explicit.
 
 See Also
 --------

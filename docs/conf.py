@@ -13,8 +13,8 @@ sys.path.insert(0, os.path.abspath('..'))
 project = 'Case-Explainer'
 copyright = '2025, Paul Whitten, Francis Wolff, Chris Papachristou'
 author = 'Paul Whitten, Francis Wolff, Chris Papachristou'
-release = '0.1.0'
-version = '0.1.0'
+release = '0.2.0'
+version = '0.2'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -46,9 +46,7 @@ napoleon_attr_annotations = True
 
 # Autodoc settings
 autodoc_default_options = {
-    'members': True,
     'member-order': 'bysource',
-    'special-members': '__init__',
     'undoc-members': True,
     'exclude-members': '__weakref__'
 }
@@ -78,7 +76,6 @@ html_theme_options = {
     'sticky_navigation': True,
     'includehidden': True,
     'titles_only': False,
-    'display_version': True,
 }
 
 # The suffix(es) of source filenames.

@@ -9,10 +9,7 @@ Explanation
 -----------
 
 .. autoclass:: Explanation
-   :members:
-   :undoc-members:
    :show-inheritance:
-   :special-members: __init__
 
 Key Attributes
 ^^^^^^^^^^^^^^

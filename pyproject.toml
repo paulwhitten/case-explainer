@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "case-explainer"
-version = "0.1.1"
+version = "0.2.0"
 description = "General-purpose case-based explainability for machine learning"
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
 authors = [
     { name = "Paul Whitten", email = "pcw@case.edu" },
 ]
