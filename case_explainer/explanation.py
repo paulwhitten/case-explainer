@@ -14,7 +14,7 @@ class Neighbor:
         self,
         index: int,
         distance: float,
-        label: int,
+        label: Any,
         features: np.ndarray,
         metadata: Optional[Dict[str, Any]] = None
     ):
@@ -39,12 +39,12 @@ class Explanation:
         test_sample: np.ndarray,
         test_index: Optional[int],
         neighbors: List[Neighbor],
-        predicted_class: int,
-        true_class: Optional[int],
+        predicted_class: Any,
+        true_class: Optional[Any],
         correspondence: float,
         correspondence_interpretation: str,
         feature_names: Optional[List[str]] = None,
-        class_names: Optional[Dict[int, str]] = None
+        class_names: Optional[Dict[Any, str]] = None
     ):
         """
         Initialize explanation.

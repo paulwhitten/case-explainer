@@ -6,15 +6,25 @@ import pytest
 from sklearn.datasets import load_iris, load_breast_cancer
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 
 from case_explainer import (
     CaseExplainer,
     SklearnMLPActivationExtractor,
     DecisionTreeActivationExtractor,
     CallableActivationExtractor,
+    CustomActivationRetrieval,
     ActivationExtractor,
+    HiddenActivationRetrieval,
+    TreeLeafRetrieval,
+    ForestProximityRetrieval,
+)
+from case_explainer._compat import (
+    LEGACY_ACTIVATION_PARAMETERS,
+    LEGACY_ACTIVATION_REMOVAL_VERSION,
 )
 from case_explainer.activations import _apply_hidden_activation
 
@@ -206,8 +216,7 @@ class TestDecisionTreeActivationExtractor:
         """Very small max_one_hot_dims forces raw-leaf fallback."""
         X_train, _, _, _ = iris
         ext = DecisionTreeActivationExtractor(max_one_hot_dims=1)
-        with pytest.warns(None):  # warning is logged, not raised
-            acts = ext.fit_transform(fitted_forest, X_train)
+        acts = ext.fit_transform(fitted_forest, X_train)
         assert acts.shape == (len(X_train), fitted_forest.n_estimators)
         assert ext._encoding == "raw"
 
@@ -501,6 +510,29 @@ class TestSklearnMLPActivationExtractorContract:
         assert acts.shape == (len(X_train), 16)
         np.testing.assert_array_equal(ext._output_weights, np.ones(16))
 
+    @pytest.mark.parametrize("layer", [-1, 2, 99])
+    def test_invalid_layer_index_raises(self, iris, fitted_mlp, layer):
+        X_train, _, _, _ = iris
+        extractor = SklearnMLPActivationExtractor(
+            layer=layer, use_output_weights=False
+        )
+        with pytest.raises(ValueError, match="layer index"):
+            extractor.fit(fitted_mlp, X_train)
+
+    def test_output_class_changes_multiclass_geometry(self, iris, fitted_mlp):
+        X_train, _, _, _ = iris
+        class_zero = SklearnMLPActivationExtractor(output_class=0)
+        class_one = SklearnMLPActivationExtractor(output_class=1)
+        acts_zero = class_zero.fit_transform(fitted_mlp, X_train)
+        acts_one = class_one.fit_transform(fitted_mlp, X_train)
+        assert not np.allclose(acts_zero, acts_one)
+
+    def test_invalid_output_class_raises(self, iris, fitted_mlp):
+        X_train, _, _, _ = iris
+        extractor = SklearnMLPActivationExtractor(output_class=99)
+        with pytest.raises(ValueError, match="output_class"):
+            extractor.fit(fitted_mlp, X_train)
+
 
 # ---------------------------------------------------------------------------
 # SklearnMLPActivationExtractor — all_hidden layer mode
@@ -631,6 +663,14 @@ class TestDecisionTreeActivationExtractorContract:
         assert act.ndim == 2
         assert act.shape[0] == 1
 
+    def test_query_can_reach_leaf_absent_from_retained_cases(self):
+        X = np.array([[0.0], [1.0], [2.0], [3.0]])
+        y = np.array([0, 0, 1, 1])
+        tree = DecisionTreeClassifier(random_state=0).fit(X, y)
+        extractor = DecisionTreeActivationExtractor().fit(tree, X[:1])
+        activation = extractor.transform(X[-1:])
+        assert activation.shape == (1, tree.tree_.node_count)
+
     def test_forest_one_hot_per_tree_sums_to_one(self, iris, fitted_forest):
         """In one-hot mode each tree's block should sum to exactly 1 per sample."""
         X_train, _, _, _ = iris
@@ -654,8 +694,7 @@ class TestDecisionTreeActivationExtractorContract:
 
 class TestCaseExplainerActivationsState:
     def test_act_scaler_populated_when_extractor_set(self, iris, fitted_mlp):
-        """_act_scaler must be a fitted StandardScaler when extractor is used."""
-        from sklearn.preprocessing import StandardScaler
+        """Metric-ready extractors must not be standardized a second time."""
         X_train, _, y_train, _ = iris
         ext = SklearnMLPActivationExtractor()
         explainer = CaseExplainer(
@@ -664,8 +703,20 @@ class TestCaseExplainerActivationsState:
             model=fitted_mlp,
             blend_alpha=0.0,
         )
-        assert isinstance(explainer._act_scaler, StandardScaler)
-        assert hasattr(explainer._act_scaler, "mean_")  # confirms it is fitted
+        assert explainer._act_scaler is None
+
+    def test_output_weights_change_integrated_geometry(self, iris, fitted_mlp):
+        """Output weighting must survive through the final k-NN index."""
+        X_train, _, y_train, _ = iris
+        weighted = CaseExplainer(
+            X_train, y_train, model=fitted_mlp,
+            activation_layer="last_hidden", use_output_weights=True,
+        )
+        unweighted = CaseExplainer(
+            X_train, y_train, model=fitted_mlp,
+            activation_layer="last_hidden", use_output_weights=False,
+        )
+        assert not np.allclose(weighted.nn_index._fit_X, unweighted.nn_index._fit_X)
 
     def test_explain_instance_without_model_uses_predicted_class(self, iris, fitted_mlp):
         """
@@ -716,12 +767,31 @@ class TestActivationLayerConvenienceParam:
     def test_activation_layer_creates_extractor(self, iris, fitted_mlp):
         """activation_layer shorthand should produce the same explainer as explicit extractor."""
         X_train, _, y_train, _ = iris
-        explainer = CaseExplainer(
-            X_train, y_train, k=5,
-            activation_layer="last_hidden",
-            model=fitted_mlp,
-        )
+        with pytest.warns(DeprecationWarning, match="version 0.3"):
+            explainer = CaseExplainer(
+                X_train, y_train, k=5,
+                activation_layer="last_hidden",
+                model=fitted_mlp,
+            )
         assert explainer.activation_extractor is not None
+
+    def test_explicit_extractor_emits_deprecation_warning(self, iris, fitted_mlp):
+        X_train, _, y_train, _ = iris
+        with pytest.warns(DeprecationWarning, match="version 0.3"):
+            CaseExplainer(
+                X_train, y_train,
+                activation_extractor=SklearnMLPActivationExtractor(),
+                model=fitted_mlp,
+            )
+
+    def test_legacy_removal_contract_is_complete(self):
+        assert LEGACY_ACTIVATION_REMOVAL_VERSION == "0.3.0"
+        assert LEGACY_ACTIVATION_PARAMETERS == (
+            "activation_extractor",
+            "activation_layer",
+            "blend_alpha",
+            "use_output_weights",
+        )
 
     def test_activation_layer_matches_explicit_extractor(self, iris, fitted_mlp):
         """Convenience param must yield identical neighbors to explicit extractor."""
@@ -772,4 +842,255 @@ class TestActivationLayerConvenienceParam:
             CaseExplainer(
                 X_train, y_train, k=5,
                 activation_layer="last_hidden",
+            )
+
+
+class TestRetrievalConfigurations:
+    def test_custom_configuration_matches_legacy_extractor(self, iris):
+        X_train, X_test, y_train, _ = iris
+        model = object()
+        configured = CaseExplainer(
+            X_train,
+            y_train,
+            retrieval=CustomActivationRetrieval(
+                model=model,
+                extractor=CallableActivationExtractor(lambda _, X: X[:, :2]),
+                blend_alpha=0.25,
+            ),
+        )
+        with pytest.warns(DeprecationWarning):
+            legacy = CaseExplainer(
+                X_train,
+                y_train,
+                model=model,
+                activation_extractor=CallableActivationExtractor(
+                    lambda _, X: X[:, :2]
+                ),
+                blend_alpha=0.25,
+            )
+        configured_indices = [
+            neighbor.index
+            for neighbor in configured.explain_instance(
+                X_test[0], predicted_class=0
+            ).neighbors
+        ]
+        legacy_indices = [
+            neighbor.index
+            for neighbor in legacy.explain_instance(
+                X_test[0], predicted_class=0
+            ).neighbors
+        ]
+        assert configured_indices == legacy_indices
+
+    def test_custom_configuration_validates_extractor(self, iris):
+        X_train, _, y_train, _ = iris
+        with pytest.raises(TypeError, match="ActivationExtractor"):
+            CaseExplainer(
+                X_train,
+                y_train,
+                retrieval=CustomActivationRetrieval(
+                    model=object(), extractor=object()
+                ),
+            )
+
+    def test_hidden_configuration_matches_legacy_api(self, iris, fitted_mlp):
+        X_train, X_test, y_train, _ = iris
+        configured = CaseExplainer(
+            X_train, y_train,
+            retrieval=HiddenActivationRetrieval(model=fitted_mlp),
+        )
+        legacy = CaseExplainer(
+            X_train, y_train, model=fitted_mlp,
+            activation_layer="last_hidden",
+        )
+        configured_exp = configured.explain_instance(X_test[0])
+        legacy_exp = legacy.explain_instance(X_test[0])
+        assert [n.index for n in configured_exp.neighbors] == [
+            n.index for n in legacy_exp.neighbors
+        ]
+
+    def test_constructor_model_is_prediction_default(self, iris, fitted_mlp):
+        X_train, X_test, y_train, _ = iris
+        explainer = CaseExplainer(
+            X_train, y_train,
+            retrieval=HiddenActivationRetrieval(model=fitted_mlp),
+        )
+        explanation = explainer.explain_instance(X_test[0])
+        assert explanation.predicted_class == int(fitted_mlp.predict(X_test[:1])[0])
+
+    def test_hidden_configuration_applies_model_input_transform(self, iris):
+        X_train, X_test, y_train, _ = iris
+        scaler = StandardScaler().fit(X_train)
+        mlp = MLPClassifier(
+            hidden_layer_sizes=(8,), max_iter=500, random_state=1
+        ).fit(scaler.transform(X_train), y_train)
+        explainer = CaseExplainer(
+            X_train, y_train,
+            retrieval=HiddenActivationRetrieval(
+                model=mlp, input_transform=scaler
+            ),
+        )
+        explanation = explainer.explain_instance(X_test[0])
+        expected = int(mlp.predict(scaler.transform(X_test[:1]))[0])
+        assert explanation.predicted_class == expected
+
+    def test_tree_retrieval_truncates_to_same_leaf(self):
+        X_train = np.array([[0.0], [1.0], [2.0], [3.0]])
+        y_train = np.array([0, 0, 1, 1])
+        tree = DecisionTreeClassifier(random_state=0).fit(X_train, y_train)
+        explainer = CaseExplainer(
+            X_train, y_train, k=4,
+            retrieval=TreeLeafRetrieval(model=tree),
+        )
+        explanation = explainer.explain_instance(np.array([0.25]))
+        query_leaf = tree.apply([[0.25]])[0]
+        assert len(explanation.neighbors) == 2
+        assert all(
+            tree.apply([neighbor.features])[0] == query_leaf
+            for neighbor in explanation.neighbors
+        )
+
+    def test_tree_retrieval_explicit_overflow(self):
+        X_train = np.array([[0.0], [1.0], [2.0], [3.0]])
+        y_train = np.array([0, 0, 1, 1])
+        tree = DecisionTreeClassifier(random_state=0).fit(X_train, y_train)
+        explainer = CaseExplainer(
+            X_train, y_train, k=4,
+            retrieval=TreeLeafRetrieval(model=tree, overflow="nearest"),
+        )
+        explanation = explainer.explain_instance(np.array([0.25]))
+        assert len(explanation.neighbors) == 4
+
+    def test_retrieval_rejects_legacy_activation_parameters(self, iris, fitted_mlp):
+        X_train, _, y_train, _ = iris
+        with pytest.raises(ValueError, match="cannot be combined"):
+            CaseExplainer(
+                X_train, y_train,
+                retrieval=HiddenActivationRetrieval(model=fitted_mlp),
+                activation_layer="last_hidden",
+            )
+
+    def test_predicted_class_weighting_selects_class_index(self, iris, fitted_mlp):
+        X_train, X_test, y_train, _ = iris
+        explainer = CaseExplainer(
+            X_train, y_train,
+            retrieval=HiddenActivationRetrieval(
+                model=fitted_mlp, output_weighting="predicted_class"
+            ),
+        )
+        assert set(explainer._class_nn_indexes) == set(fitted_mlp.classes_)
+        class_zero = explainer.explain_instance(
+            X_test[0], predicted_class=int(fitted_mlp.classes_[0])
+        )
+        class_one = explainer.explain_instance(
+            X_test[0], predicted_class=int(fitted_mlp.classes_[1])
+        )
+        assert [n.distance for n in class_zero.neighbors] != [
+            n.distance for n in class_one.neighbors
+        ]
+        assert "mode='activations'" in repr(explainer)
+
+    def test_binary_predicted_class_weighting_shares_single_output(self, iris):
+        X_train, X_test, y_train, _ = iris
+        binary_mask = y_train != 2
+        mlp = MLPClassifier(
+            hidden_layer_sizes=(8,), max_iter=500, random_state=2
+        ).fit(X_train[binary_mask], y_train[binary_mask])
+        explainer = CaseExplainer(
+            X_train[binary_mask], y_train[binary_mask],
+            retrieval=HiddenActivationRetrieval(
+                model=mlp, output_weighting="predicted_class"
+            ),
+        )
+        weights = [
+            extractor._output_weights
+            for extractor in explainer._class_activation_extractors.values()
+        ]
+        np.testing.assert_allclose(weights[0], weights[1])
+        indexes = list(explainer._class_nn_indexes.values())
+        assert indexes[0] is indexes[1]
+
+    def test_predicted_class_weighting_maps_non_contiguous_labels(self, iris):
+        X_train, X_test, y_train, _ = iris
+        labels = np.array([10, 30, 50])[y_train]
+        mlp = MLPClassifier(
+            hidden_layer_sizes=(8,), max_iter=500, random_state=3
+        ).fit(X_train, labels)
+        explainer = CaseExplainer(
+            X_train, labels,
+            retrieval=HiddenActivationRetrieval(
+                model=mlp,
+                output_weighting="predicted_class",
+                blend_alpha=0.25,
+            ),
+        )
+        explanation = explainer.explain_instance(
+            X_test[0], predicted_class=30
+        )
+        assert explanation.predicted_class == 30
+        assert len(explanation.neighbors) == explainer.k
+
+    def test_forest_proximity_matches_shared_leaf_fraction(
+        self, iris, fitted_forest
+    ):
+        X_train, X_test, y_train, _ = iris
+        explainer = CaseExplainer(
+            X_train, y_train, k=5,
+            retrieval=ForestProximityRetrieval(model=fitted_forest),
+        )
+        explanation = explainer.explain_instance(X_test[0])
+        query_leaves = fitted_forest.apply(X_test[:1])[0]
+        training_leaves = fitted_forest.apply(X_train)
+        expected = 1.0 - np.mean(training_leaves == query_leaves, axis=1)
+        expected_indices = np.argsort(expected, kind="stable")[:5]
+        assert [n.index for n in explanation.neighbors] == expected_indices.tolist()
+        np.testing.assert_allclose(
+            [n.distance for n in explanation.neighbors], expected[expected_indices]
+        )
+
+    def test_predicted_class_weighting_supports_string_labels(self, iris):
+        X_train, X_test, y_train, _ = iris
+        labels = np.array(["setosa", "versicolor", "virginica"])[y_train]
+        mlp = MLPClassifier(
+            hidden_layer_sizes=(8,), max_iter=500, random_state=4
+        ).fit(X_train, labels)
+        explainer = CaseExplainer(
+            X_train, labels,
+            retrieval=HiddenActivationRetrieval(
+                model=mlp, output_weighting="predicted_class"
+            ),
+        )
+        explanation = explainer.explain_instance(X_test[0])
+        assert explanation.predicted_class in mlp.classes_
+        assert all(isinstance(neighbor.label, str) for neighbor in explanation.neighbors)
+        assert explanation.to_dict()["predicted_class"] == explanation.predicted_class
+
+    def test_batch_supports_string_labels(self, iris):
+        X_train, X_test, y_train, y_test = iris
+        names = np.array(["setosa", "versicolor", "virginica"])
+        labels = names[y_train]
+        predictions = names[y_test[:3]]
+        explainer = CaseExplainer(X_train, labels)
+        explanations = explainer.explain_batch(
+            X_test[:3], y_test=predictions, predictions=predictions
+        )
+        assert [item.predicted_class for item in explanations] == predictions.tolist()
+        assert all(item.is_correct() for item in explanations)
+
+    @pytest.mark.parametrize(
+        ("model_type", "retrieval_type"),
+        [
+            (DecisionTreeRegressor, TreeLeafRetrieval),
+            (RandomForestRegressor, ForestProximityRetrieval),
+        ],
+    )
+    def test_retrieval_rejects_regressors(
+        self, iris, model_type, retrieval_type
+    ):
+        X_train, _, y_train, _ = iris
+        model = model_type(random_state=0).fit(X_train, y_train.astype(float))
+        with pytest.raises(TypeError, match="classifier"):
+            CaseExplainer(
+                X_train, y_train,
+                retrieval=retrieval_type(model=model),
             )

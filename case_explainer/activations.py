@@ -35,9 +35,52 @@ Usage::
 import logging
 import numpy as np
 from abc import ABC, abstractmethod
-from typing import Union
+from dataclasses import dataclass
+from typing import Any, Optional, Union
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class HiddenActivationRetrieval:
+    """Configure hidden-activation retrieval from an sklearn MLP.
+
+    ``output_weighting`` accepts ``"mean_abs"`` (the compatibility default),
+    ``"predicted_class"``, or ``"none"``. Setting the legacy
+    ``use_output_weights`` field to false also selects unweighted activations.
+    """
+
+    model: Any
+    layer: Union[str, int] = "last_hidden"
+    use_output_weights: bool = True
+    output_weighting: str = "mean_abs"
+    blend_alpha: float = 0.0
+    input_transform: Optional[Any] = None
+
+
+@dataclass(frozen=True)
+class CustomActivationRetrieval:
+    """Configure retrieval with a user-provided activation extractor."""
+
+    model: Any
+    extractor: "ActivationExtractor"
+    blend_alpha: float = 0.0
+
+
+@dataclass(frozen=True)
+class TreeLeafRetrieval:
+    """Configuration for paper-faithful single-tree case retrieval."""
+
+    model: Any
+    overflow: str = "truncate"
+    within_leaf: str = "feature_distance"
+
+
+@dataclass(frozen=True)
+class ForestProximityRetrieval:
+    """Configuration for random-forest shared-leaf proximity retrieval."""
+
+    model: Any
 
 
 # ---------------------------------------------------------------------------
@@ -86,6 +129,11 @@ class ActivationExtractor(ABC):
     @property
     def is_fitted(self) -> bool:
         return getattr(self, "_model", None) is not None
+
+    @property
+    def metric_ready(self) -> bool:
+        """Whether transform output is already normalized for distance use."""
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -149,23 +197,38 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
 
         use_output_weights:
             If ``True`` (default), scale each unit in the *last* hidden layer
-            by the mean absolute magnitude of its output-layer connections
-            (Caruana §5).  This applies to ``'last_hidden'`` and to the last
+            by its output-layer connection magnitude (Caruana §5). Connections
+            are averaged across outputs unless ``output_class`` selects one
+            output column. This applies to ``'last_hidden'`` and to the last
             layer when ``'all_hidden'`` is used; it has no effect on earlier
             layers because output-weight importance is only directly readable
             from ``coefs_[-1]``.
+
+        input_transform:
+            Optional preprocessing applied before the MLP forward pass. This
+            can be a fitted transformer with ``transform`` or a callable.
+
+        output_class:
+            Optional zero-based output-column index. When provided, unit
+            importance is derived from that output instead of averaging
+            absolute connections across outputs.
     """
 
     def __init__(
         self,
         layer: Union[str, int] = "last_hidden",
         use_output_weights: bool = True,
+        input_transform: Optional[Any] = None,
+        output_class: Optional[int] = None,
     ):
         self.layer = layer
         self.use_output_weights = use_output_weights
+        self.input_transform = input_transform
+        self.output_class = output_class
         self._model = None
         # Single-layer modes
         self._output_weights = None
+        self._activation_scaler = None
         # all_hidden mode
         self._layer_scalers = None
         self._layer_position_weights = None
@@ -175,14 +238,22 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
     def fit(self, model, X: np.ndarray) -> "SklearnMLPActivationExtractor":
         self._validate(model)
         self._model = model
+        X_model = self._prepare_input(X)
 
         if self.layer == "all_hidden":
-            self._fit_all_hidden(model, np.atleast_2d(np.asarray(X, dtype=float)))
-        elif self.use_output_weights and self.layer == "last_hidden":
+            self._fit_all_hidden(model, X_model)
+        else:
+            self._validate_layer_index(model)
+            from sklearn.preprocessing import StandardScaler
+
+            raw_activations = self._forward_to_hidden(X_model)
+            self._activation_scaler = StandardScaler().fit(raw_activations)
+
+        if self.use_output_weights and self.layer == "last_hidden":
             # coefs_[-1] shape: (n_hidden_last, n_outputs)
-            # Mean absolute weight across output nodes → importance of each unit
+            # Convert output connections to one importance value per hidden unit.
             output_coefs = model.coefs_[-1]
-            weights = np.mean(np.abs(output_coefs), axis=1)
+            weights = self._output_importance(output_coefs)
             # Normalize: preserve total scale while redistributing emphasis
             total = weights.sum()
             if total > 0:
@@ -197,7 +268,7 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
                 self._output_weights.min(),
                 self._output_weights.max(),
             )
-        else:
+        elif self.layer != "all_hidden":
             # Output-weight scaling requires last_hidden; defer to transform()
             if self.use_output_weights and isinstance(self.layer, int):
                 logger.warning(
@@ -238,7 +309,7 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
         # Output-weight scaling for the last hidden layer only (Caruana §5)
         if self.use_output_weights:
             output_coefs = model.coefs_[-1]
-            weights = np.mean(np.abs(output_coefs), axis=1)
+            weights = self._output_importance(output_coefs)
             total = weights.sum()
             self._all_hidden_output_weights = (
                 weights / total * len(weights) if total > 0
@@ -258,17 +329,17 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
     def transform(self, X: np.ndarray) -> np.ndarray:
         if self._model is None:
             raise RuntimeError("Call fit() before transform().")
-        X = np.atleast_2d(np.asarray(X, dtype=float))
+        X = self._prepare_input(X)
 
         if self.layer == "all_hidden":
             return self._transform_all_hidden(X)
 
-        activations = self._forward_to_hidden(X)
+        activations = self._activation_scaler.transform(self._forward_to_hidden(X))
         # Lazy-init uniform weights when shape wasn't known at fit time
         if self._output_weights is None:
             self._output_weights = np.ones(activations.shape[1])
         # Apply output-weight scaling (weighted Euclidean, Caruana §5)
-        return activations * self._output_weights
+        return activations * np.sqrt(self._output_weights)
 
     # ------------------------------------------------------------------
     def _transform_all_hidden(self, X: np.ndarray) -> np.ndarray:
@@ -282,9 +353,48 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
             scaled = scaler.transform(acts)
             if i == n_layers - 1 and self._all_hidden_output_weights is not None:
                 # Output-weight scaling for the last layer (Caruana §5)
-                scaled = scaled * self._all_hidden_output_weights
+                scaled = scaled * np.sqrt(self._all_hidden_output_weights)
             parts.append(pos_w * scaled)
         return np.hstack(parts)
+
+    @property
+    def metric_ready(self) -> bool:
+        return True
+
+    def _prepare_input(self, X: np.ndarray) -> np.ndarray:
+        """Apply optional model preprocessing and return a dense 2D array."""
+        X = np.atleast_2d(X)
+        if self.input_transform is not None:
+            transform = getattr(self.input_transform, "transform", self.input_transform)
+            if not callable(transform):
+                raise TypeError("input_transform must be callable or provide transform().")
+            X = transform(X)
+        if hasattr(X, "toarray"):
+            X = X.toarray()
+        return np.atleast_2d(np.asarray(X, dtype=float))
+
+    def _validate_layer_index(self, model) -> None:
+        if not isinstance(self.layer, int):
+            if self.layer != "last_hidden":
+                raise ValueError(
+                    "layer must be 'last_hidden', 'all_hidden', or an integer"
+                )
+            return
+        n_hidden_layers = model.n_layers_ - 2
+        if not 0 <= self.layer < n_hidden_layers:
+            raise ValueError(
+                f"layer index must be in [0, {n_hidden_layers - 1}], got {self.layer}"
+            )
+
+    def _output_importance(self, output_coefs: np.ndarray) -> np.ndarray:
+        if self.output_class is None:
+            return np.mean(np.abs(output_coefs), axis=1)
+        if not 0 <= self.output_class < output_coefs.shape[1]:
+            raise ValueError(
+                f"output_class must be in [0, {output_coefs.shape[1] - 1}], "
+                f"got {self.output_class}"
+            )
+        return np.abs(output_coefs[:, self.output_class])
 
     # ------------------------------------------------------------------
     def _forward_to_hidden(self, X: np.ndarray) -> np.ndarray:
@@ -297,7 +407,7 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
         if self.layer == "last_hidden":
             target = n_hidden_layers - 1
         elif isinstance(self.layer, int):
-            target = max(0, min(int(self.layer), n_hidden_layers - 1))
+            target = self.layer
         else:
             raise ValueError(
                 f"layer must be 'last_hidden', 'all_hidden', or int, got {self.layer!r}"
@@ -373,10 +483,10 @@ class DecisionTreeActivationExtractor(ActivationExtractor):
         self._encoding: str = "one_hot"  # or "raw"
         self._is_forest: bool = False
         # one_hot mode
-        self._leaf_offsets: np.ndarray | None = None
+        self._leaf_offsets: Optional[np.ndarray] = None
         self._total_dims: int = 0
         # raw mode
-        self._max_per_tree: np.ndarray | None = None
+        self._max_per_tree: Optional[np.ndarray] = None
 
     # ------------------------------------------------------------------
     def fit(self, model, X: np.ndarray) -> "DecisionTreeActivationExtractor":
@@ -387,7 +497,9 @@ class DecisionTreeActivationExtractor(ActivationExtractor):
         self._is_forest = leaf_ids.ndim == 2
 
         if self._is_forest:
-            max_per_tree = leaf_ids.max(axis=0)  # (n_trees,)
+            max_per_tree = np.array([
+                estimator.tree_.node_count - 1 for estimator in model.estimators_
+            ])
             total_dims = int((max_per_tree + 1).sum())
             if total_dims <= self.max_one_hot_dims:
                 self._encoding = "one_hot"
@@ -406,7 +518,7 @@ class DecisionTreeActivationExtractor(ActivationExtractor):
                     self.max_one_hot_dims,
                 )
         else:
-            max_leaf = int(leaf_ids.max())
+            max_leaf = model.tree_.node_count - 1
             self._encoding = "one_hot"
             self._leaf_offsets = np.array([0], dtype=int)
             self._total_dims = max_leaf + 1

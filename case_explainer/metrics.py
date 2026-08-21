@@ -4,7 +4,7 @@ Distance metrics and correspondence calculation.
 
 import numpy as np
 from scipy.spatial import distance as scipy_distance
-from typing import List, Tuple, Optional, Dict
+from typing import Any, Dict, List, Optional, Tuple
 
 
 def euclidean_distance(point1: np.ndarray, point2: np.ndarray) -> float:
@@ -22,10 +22,10 @@ def euclidean_distance(point1: np.ndarray, point2: np.ndarray) -> float:
 
 
 def compute_correspondence(
-    neighbors: List[Tuple[int, float, int]],
-    predicted_class: int,
+    neighbors: List[Tuple[int, float, Any]],
+    predicted_class: Any,
     distance_weighted: bool = True,
-    class_weights: Optional[Dict[int, float]] = None
+    class_weights: Optional[Dict[Any, float]] = None
 ) -> Tuple[float, str]:
     """
     Quantify agreement between prediction and retrieved neighbors.
