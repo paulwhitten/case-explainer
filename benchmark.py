@@ -26,7 +26,7 @@ import os
 import time
 import tracemalloc
 from dataclasses import dataclass
-from typing import List, Dict, Tuple, Optional
+from typing import Iterable, List, Dict, Tuple, Optional
 import numpy as np
 import pandas as pd
 from sklearn.datasets import (
@@ -34,13 +34,19 @@ from sklearn.datasets import (
 )
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.datasets import make_classification
 from sklearn.metrics import accuracy_score
 import warnings
 warnings.filterwarnings('ignore')
 
 # Add case_explainer to path
 sys.path.insert(0, os.path.dirname(__file__))
-from case_explainer import CaseExplainer
+from case_explainer import (
+    CaseExplainer,
+    ForestProximityRetrieval,
+    HiddenActivationRetrieval,
+)
 
 
 @dataclass
@@ -69,6 +75,279 @@ class BenchmarkResult:
     # Correspondence by correctness
     correct_correspondence: Optional[float] = None
     incorrect_correspondence: Optional[float] = None
+
+
+@dataclass
+class RetrievalStrategyBenchmark:
+    """Timing and peak-memory results for one retrieval strategy."""
+
+    strategy: str
+    n_samples: int
+    n_features: int
+    n_classes: int
+    fit_time: float
+    query_time: float
+    query_time_std: float
+    repetitions: int
+    peak_memory_mb: float
+
+
+def benchmark_retrieval_strategies(
+    n_samples: int = 2000,
+    n_features: int = 20,
+    n_classes: int = 3,
+    hidden_width: int = 32,
+    n_estimators: int = 50,
+    n_queries: int = 25,
+    warmup_queries: int = 2,
+    repetitions: int = 5,
+) -> List[RetrievalStrategyBenchmark]:
+    """Benchmark query-dependent retrieval modes on deterministic data."""
+    X, y = make_classification(
+        n_samples=n_samples,
+        n_features=n_features,
+        n_informative=max(n_classes, n_features // 2),
+        n_redundant=0,
+        n_classes=n_classes,
+        random_state=42,
+    )
+    X_train, X_test, y_train, _ = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    mlp = MLPClassifier(
+        hidden_layer_sizes=(hidden_width,),
+        max_iter=200,
+        random_state=42,
+    ).fit(X_train, y_train)
+    forest = RandomForestClassifier(
+        n_estimators=n_estimators,
+        random_state=42,
+        n_jobs=-1,
+    ).fit(X_train, y_train)
+    configurations = [
+        (
+            "activation_predicted_class",
+            HiddenActivationRetrieval(
+                model=mlp, output_weighting="predicted_class"
+            ),
+        ),
+        ("forest_proximity", ForestProximityRetrieval(model=forest)),
+    ]
+
+    results = []
+    query_count = min(n_queries, len(X_test))
+    for strategy, retrieval in configurations:
+        tracemalloc.start()
+        start_time = time.perf_counter()
+        explainer = CaseExplainer(X_train, y_train, retrieval=retrieval)
+        fit_time = time.perf_counter() - start_time
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        warmup_count = min(warmup_queries, query_count)
+        for sample in X_test[:warmup_count]:
+            explainer.explain_instance(sample)
+
+        trial_times = []
+        for _ in range(repetitions):
+            start_time = time.perf_counter()
+            for sample in X_test[:query_count]:
+                explainer.explain_instance(sample)
+            trial_times.append(
+                (time.perf_counter() - start_time) / query_count
+            )
+        results.append(RetrievalStrategyBenchmark(
+            strategy=strategy,
+            n_samples=len(X_train),
+            n_features=n_features,
+            n_classes=n_classes,
+            fit_time=fit_time,
+            query_time=float(np.median(trial_times)),
+            query_time_std=float(np.std(trial_times)),
+            repetitions=repetitions,
+            peak_memory_mb=peak / 1024 / 1024,
+        ))
+    return results
+
+
+def benchmark_retrieval_matrix(
+    sample_sizes: Iterable[int],
+    feature_counts: Iterable[int],
+    class_counts: Iterable[int],
+    hidden_width: int = 32,
+    n_estimators: int = 50,
+    n_queries: int = 10,
+    warmup_queries: int = 2,
+    repetitions: int = 5,
+) -> List[RetrievalStrategyBenchmark]:
+    """Benchmark retrieval strategies across independent scaling dimensions."""
+    sample_sizes = list(sample_sizes)
+    feature_counts = list(feature_counts)
+    class_counts = list(class_counts)
+    if not sample_sizes or not feature_counts or not class_counts:
+        raise ValueError("benchmark dimensions must not be empty")
+
+    baseline = (sample_sizes[0], feature_counts[0], class_counts[0])
+    configurations = {baseline}
+    configurations.update(
+        (value, baseline[1], baseline[2]) for value in sample_sizes
+    )
+    configurations.update(
+        (baseline[0], value, baseline[2]) for value in feature_counts
+    )
+    configurations.update(
+        (baseline[0], baseline[1], value) for value in class_counts
+    )
+
+    results = []
+    for n_samples, n_features, n_classes in sorted(configurations):
+        results.extend(benchmark_retrieval_strategies(
+            n_samples=n_samples,
+            n_features=n_features,
+            n_classes=n_classes,
+            hidden_width=hidden_width,
+            n_estimators=n_estimators,
+            n_queries=n_queries,
+            warmup_queries=warmup_queries,
+            repetitions=repetitions,
+        ))
+    return results
+
+
+def save_retrieval_results(
+    results: List[RetrievalStrategyBenchmark], filename: str
+) -> None:
+    """Write retrieval strategy benchmark results as machine-readable CSV."""
+    pd.DataFrame([
+        {
+            "strategy": result.strategy,
+            "n_samples": result.n_samples,
+            "n_features": result.n_features,
+            "n_classes": result.n_classes,
+            "fit_time_s": result.fit_time,
+            "query_time_ms": result.query_time * 1000,
+            "query_time_std_ms": result.query_time_std * 1000,
+            "repetitions": result.repetitions,
+            "peak_memory_mb": result.peak_memory_mb,
+        }
+        for result in results
+    ]).to_csv(filename, index=False)
+
+
+def compare_retrieval_results(
+    baseline_file: str,
+    candidate_file: str,
+    relative_tolerance: float = 0.5,
+    uncertainty_multiplier: float = 3.0,
+    fit_tolerance: float = 1.0,
+    memory_tolerance: float = 0.25,
+) -> List[str]:
+    """Compare normalized benchmark relationships across different machines."""
+    key_columns = ["strategy", "n_samples", "n_features", "n_classes"]
+    required_columns = key_columns + [
+        "query_time_ms",
+        "query_time_std_ms",
+        "repetitions",
+        "peak_memory_mb",
+        "fit_time_s",
+    ]
+    frames = {
+        "baseline": pd.read_csv(baseline_file),
+        "candidate": pd.read_csv(candidate_file),
+    }
+    for name, frame in frames.items():
+        missing = set(required_columns) - set(frame.columns)
+        if missing:
+            raise ValueError(
+                f"{name} benchmark is missing columns: {sorted(missing)}"
+            )
+        if frame.duplicated(key_columns).any():
+            raise ValueError(f"{name} benchmark contains duplicate experiment keys")
+        numeric = frame[required_columns[1:]].to_numpy(dtype=float)
+        if not np.isfinite(numeric).all() or (numeric < 0).any():
+            raise ValueError(f"{name} benchmark contains invalid metric values")
+        positive_columns = ["query_time_ms", "peak_memory_mb", "fit_time_s"]
+        if (frame[positive_columns] <= 0).any().any():
+            raise ValueError(f"{name} benchmark contains zero-valued metrics")
+        if (frame["repetitions"] < 3).any():
+            raise ValueError(f"{name} benchmark requires at least 3 repetitions")
+
+    baseline = frames["baseline"].set_index(key_columns).sort_index()
+    candidate = frames["candidate"].set_index(key_columns).sort_index()
+    if not baseline.index.equals(candidate.index):
+        missing = baseline.index.difference(candidate.index).tolist()
+        extra = candidate.index.difference(baseline.index).tolist()
+        raise ValueError(
+            f"benchmark experiment keys differ; missing={missing}, extra={extra}"
+        )
+
+    findings = []
+    for strategy in baseline.index.get_level_values("strategy").unique():
+        baseline_strategy = baseline.xs(strategy, level="strategy")
+        candidate_strategy = candidate.xs(strategy, level="strategy")
+        anchor = baseline_strategy.index[0]
+        baseline_anchor = baseline_strategy.loc[anchor]
+        candidate_anchor = candidate_strategy.loc[anchor]
+        for experiment in baseline_strategy.index[1:]:
+            baseline_row = baseline_strategy.loc[experiment]
+            candidate_row = candidate_strategy.loc[experiment]
+            baseline_ratio = (
+                baseline_row["query_time_ms"]
+                / baseline_anchor["query_time_ms"]
+            )
+            candidate_ratio = (
+                candidate_row["query_time_ms"]
+                / candidate_anchor["query_time_ms"]
+            )
+            relative_uncertainty = uncertainty_multiplier * np.sqrt(
+                (baseline_row["query_time_std_ms"]
+                 / baseline_row["query_time_ms"]) ** 2
+                + (candidate_row["query_time_std_ms"]
+                   / candidate_row["query_time_ms"]) ** 2
+                + (baseline_anchor["query_time_std_ms"]
+                   / baseline_anchor["query_time_ms"]) ** 2
+                + (candidate_anchor["query_time_std_ms"]
+                   / candidate_anchor["query_time_ms"]) ** 2
+            )
+            allowed_ratio = baseline_ratio * (
+                1.0 + relative_tolerance + relative_uncertainty
+            )
+            if candidate_ratio > allowed_ratio:
+                findings.append(
+                    f"{strategy} query scaling regressed at {experiment}: "
+                    f"{candidate_ratio:.2f}x vs {baseline_ratio:.2f}x baseline"
+                )
+
+            baseline_memory_ratio = (
+                baseline_row["peak_memory_mb"]
+                / baseline_anchor["peak_memory_mb"]
+            )
+            candidate_memory_ratio = (
+                candidate_row["peak_memory_mb"]
+                / candidate_anchor["peak_memory_mb"]
+            )
+            if candidate_memory_ratio > baseline_memory_ratio * (
+                1.0 + memory_tolerance
+            ):
+                findings.append(
+                    f"{strategy} memory scaling regressed at {experiment}: "
+                    f"{candidate_memory_ratio:.2f}x vs "
+                    f"{baseline_memory_ratio:.2f}x baseline"
+                )
+
+            baseline_fit_ratio = (
+                baseline_row["fit_time_s"] / baseline_anchor["fit_time_s"]
+            )
+            candidate_fit_ratio = (
+                candidate_row["fit_time_s"] / candidate_anchor["fit_time_s"]
+            )
+            if candidate_fit_ratio > baseline_fit_ratio * (1.0 + fit_tolerance):
+                findings.append(
+                    f"{strategy} fit scaling regressed at {experiment}: "
+                    f"{candidate_fit_ratio:.2f}x vs "
+                    f"{baseline_fit_ratio:.2f}x baseline"
+                )
+    return findings
 
 
 class DatasetLoader:
@@ -471,8 +750,81 @@ def main():
                         help='Index methods to test (default: all applicable)')
     parser.add_argument('--output', type=str, default='benchmark_results.csv',
                         help='Output CSV file (default: benchmark_results.csv)')
+    parser.add_argument(
+        '--retrieval-strategies', action='store_true',
+        help='Benchmark predicted-class activation and forest proximity retrieval'
+    )
+    parser.add_argument(
+        '--retrieval-samples', type=int, default=2000,
+        help='Synthetic sample count for retrieval strategy benchmarks'
+    )
+    parser.add_argument(
+        '--retrieval-matrix', action='store_true',
+        help='Vary sample, feature, and class counts independently'
+    )
+    parser.add_argument(
+        '--retrieval-features', type=int, nargs='+', default=[20, 50],
+        help='Feature counts for the retrieval matrix'
+    )
+    parser.add_argument(
+        '--retrieval-classes', type=int, nargs='+', default=[2, 3, 5],
+        help='Class counts for the retrieval matrix'
+    )
+    parser.add_argument(
+        '--retrieval-warmups', type=int, default=2,
+        help='Untimed warm-up queries per strategy'
+    )
+    parser.add_argument(
+        '--retrieval-repetitions', type=int, default=5,
+        help='Timed trials used to report median latency and standard deviation'
+    )
+    parser.add_argument(
+        '--check-regression', metavar='CANDIDATE_CSV',
+        help='Compare normalized candidate scaling against --baseline'
+    )
+    parser.add_argument(
+        '--baseline', default='benchmarks/retrieval_baseline.csv',
+        help='Reference CSV for --check-regression'
+    )
     
     args = parser.parse_args()
+
+    if args.check_regression:
+        findings = compare_retrieval_results(args.baseline, args.check_regression)
+        if findings:
+            print("\n".join(findings))
+            raise SystemExit(1)
+        print("Retrieval performance regression check passed.")
+        return
+
+    if args.retrieval_strategies:
+        if args.retrieval_matrix:
+            results = benchmark_retrieval_matrix(
+                sample_sizes=[args.retrieval_samples, args.retrieval_samples * 2],
+                feature_counts=args.retrieval_features,
+                class_counts=args.retrieval_classes,
+                n_queries=args.batch_size,
+                warmup_queries=args.retrieval_warmups,
+                repetitions=args.retrieval_repetitions,
+            )
+        else:
+            results = benchmark_retrieval_strategies(
+                n_samples=args.retrieval_samples,
+                n_queries=args.batch_size,
+                warmup_queries=args.retrieval_warmups,
+                repetitions=args.retrieval_repetitions,
+            )
+        print("\nRETRIEVAL STRATEGY BENCHMARKS")
+        for result in results:
+            print(
+                f"{result.strategy:28s} fit={result.fit_time:.3f}s "
+                f"query={result.query_time * 1000:.2f}ms "
+                f"std={result.query_time_std * 1000:.2f}ms "
+                f"peak={result.peak_memory_mb:.1f}MB"
+            )
+        save_retrieval_results(results, args.output)
+        print(f"\nResults saved to: {args.output}")
+        return
     
     benchmarker = Benchmarker(k=args.k, n_batch_samples=args.batch_size)
     
