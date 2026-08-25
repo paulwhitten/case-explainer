@@ -294,7 +294,7 @@ The documentation includes:
 4. Set up access control and audit logging
 5. Review legal/regulatory requirements (GDPR, HIPAA, etc.)
 
-**Privacy protection features are planned for Phase 2.** For now, use only with non-sensitive data or in controlled research environments.
+Privacy-preserving features are not yet available. Use only with non-sensitive data or in controlled research environments.
 
 Unlike LIME/SHAP which only show feature importance, case-explainer exposes training sample features. Evaluate whether this trade-off is acceptable for your use case.
 
