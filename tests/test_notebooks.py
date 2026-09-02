@@ -4,9 +4,7 @@ import json
 from pathlib import Path
 
 
-NOTEBOOK = (
-    Path(__file__).parents[1] / "notebooks" / "02_breast_cancer_tutorial.ipynb"
-)
+NOTEBOOK = Path(__file__).parents[1] / "notebooks" / "02_breast_cancer_tutorial.ipynb"
 
 
 def test_breast_cancer_notebook_uses_current_retrieval_api():
@@ -17,10 +15,11 @@ def test_breast_cancer_notebook_uses_current_retrieval_api():
     assert len(notebook["cells"]) == 39
     assert all(cell.get("id") for cell in notebook["cells"])
     source = "".join(
-        line
-        for cell in notebook["cells"]
-        for line in cell.get("source", [])
+        line for cell in notebook["cells"] for line in cell.get("source", [])
     )
-    assert "HiddenActivationRetrieval" in source
+    assert "similarity=HiddenActivations(" in source
+    assert "similarity=Blend(" in source
     assert 'output_weighting="predicted_class"' in source
+    assert "HiddenActivationRetrieval" not in source
+    assert "retrieval=" not in source
     assert "activation_layer=" not in source

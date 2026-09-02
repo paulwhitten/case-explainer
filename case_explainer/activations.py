@@ -13,22 +13,19 @@ Reference:
 Usage::
 
     # Pure activation-based similarity (Caruana 1999)
-    from case_explainer import CaseExplainer, SklearnMLPActivationExtractor
+    from case_explainer import CaseExplainer, HiddenActivations
 
-    extractor = SklearnMLPActivationExtractor(use_output_weights=True)
     explainer = CaseExplainer(
         X_train, y_train, k=5,
-        model=clf,
-        activation_extractor=extractor,
-        blend_alpha=0.0,   # 0.0 = pure activations, 1.0 = pure features
+        similarity=HiddenActivations(model=clf),
     )
 
     # Hybrid: 30% features + 70% activations
+    from case_explainer import Blend
+
     explainer = CaseExplainer(
         X_train, y_train, k=5,
-        model=clf,
-        activation_extractor=extractor,
-        blend_alpha=0.3,
+        similarity=Blend(HiddenActivations(model=clf), features=0.3),
     )
 """
 
@@ -36,14 +33,151 @@ import logging
 import numpy as np
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Optional, Union
+from typing import Any, Optional, Protocol, Union, runtime_checkable
 
 logger = logging.getLogger(__name__)
 
 
+@runtime_checkable
+class Predictor(Protocol):
+    """Minimal structural type for a fitted classifier: it must ``predict``."""
+
+    def predict(self, X: Any) -> Any: ...
+
+
+# ---------------------------------------------------------------------------
+# Public similarity strategies (preferred API)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Features:
+    """Retrieve neighbors in raw (scaled) feature space.
+
+    This is the default behaviour and the feature-space half of the
+    Caruana et al. (1999) comparison. Passing ``similarity=Features()`` is
+    equivalent to passing no ``similarity`` at all; it exists so the two
+    halves of the comparison read symmetrically in user code.
+    """
+
+
+@dataclass(frozen=True)
+class HiddenActivations:
+    """Retrieve neighbors in the hidden-activation space of an sklearn MLP.
+
+    Implements Caruana et al. (1999): the trained network's internal
+    representation becomes the distance metric for case retrieval.
+
+    Args:
+        model: A fitted ``MLPClassifier``.
+        layer: ``"last_hidden"`` (default), ``"all_hidden"``, or an integer
+            hidden-layer index.
+        output_weighting: How to weight hidden units by their contribution to
+            the output. One of ``"mean_abs"`` (default), ``"predicted_class"``,
+            or ``"none"``.
+        input_transform: Optional preprocessing applied before the forward pass.
+
+    Wrap this in :class:`Blend` to mix activation space with feature space.
+    """
+
+    model: Any
+    layer: Union[str, int] = "last_hidden"
+    output_weighting: str = "mean_abs"
+    input_transform: Optional[Any] = None
+
+    def __post_init__(self) -> None:
+        if self.output_weighting not in ("mean_abs", "predicted_class", "none"):
+            raise ValueError(
+                "output_weighting must be 'mean_abs', 'predicted_class', "
+                f"or 'none', got {self.output_weighting!r}"
+            )
+
+
+@dataclass(frozen=True)
+class CustomActivations:
+    """Retrieve neighbors using a user-provided activation extractor.
+
+    Args:
+        model: The fitted model the extractor reads activations from.
+        extractor: An :class:`ActivationExtractor` implementation.
+    """
+
+    model: Any
+    extractor: "ActivationExtractor"
+
+
+@dataclass(frozen=True)
+class TreeLeaf:
+    """Retrieve training cases that share a decision-tree leaf.
+
+    Args:
+        model: A fitted ``DecisionTreeClassifier``.
+        overflow: ``"truncate"`` (default) returns only same-leaf cases;
+            ``"nearest"`` backfills from the closest out-of-leaf cases when a
+            leaf holds fewer than ``k`` training samples.
+        within_leaf: How same-leaf cases are ordered. Only
+            ``"feature_distance"`` is supported.
+    """
+
+    model: Any
+    overflow: str = "truncate"
+    within_leaf: str = "feature_distance"
+
+
+@dataclass(frozen=True)
+class ForestProximity:
+    """Retrieve training cases by random-forest shared-leaf proximity.
+
+    Args:
+        model: A fitted ``RandomForestClassifier``.
+    """
+
+    model: Any
+
+
+@dataclass(frozen=True)
+class Blend:
+    """Blend an activation strategy with raw feature space.
+
+    Args:
+        strategy: A :class:`HiddenActivations` or :class:`CustomActivations`
+            instance whose activation space is mixed with features.
+        features: Weight given to feature space, in ``[0, 1]``. The remainder
+            goes to the wrapped strategy's activation space. The index is built
+            on ``[sqrt(features) * X, sqrt(1 - features) * A]``, so
+            ``features=0.0`` is pure activations and ``features=1.0`` is pure
+            features.
+    """
+
+    strategy: Any
+    features: float = 0.3
+
+    def __post_init__(self) -> None:
+        if not 0.0 <= self.features <= 1.0:
+            raise ValueError(f"features must be in [0, 1], got {self.features}")
+
+
+#: Union of every public similarity strategy accepted by ``similarity=``.
+SimilarityStrategy = Union[
+    Features,
+    HiddenActivations,
+    CustomActivations,
+    TreeLeaf,
+    ForestProximity,
+    Blend,
+]
+
+
+# ---------------------------------------------------------------------------
+# Legacy retrieval configuration (deprecated; superseded by the strategies
+# above and the ``similarity=`` parameter). Retained as the internal
+# representation and for backward compatibility with ``retrieval=``.
+# ---------------------------------------------------------------------------
+
+
 @dataclass(frozen=True)
 class HiddenActivationRetrieval:
-    """Configure hidden-activation retrieval from an sklearn MLP.
+    """Deprecated. Use :class:`HiddenActivations` (with :class:`Blend`).
 
     ``output_weighting`` accepts ``"mean_abs"`` (the compatibility default),
     ``"predicted_class"``, or ``"none"``. Setting the legacy
@@ -60,7 +194,7 @@ class HiddenActivationRetrieval:
 
 @dataclass(frozen=True)
 class CustomActivationRetrieval:
-    """Configure retrieval with a user-provided activation extractor."""
+    """Deprecated. Use :class:`CustomActivations` (with :class:`Blend`)."""
 
     model: Any
     extractor: "ActivationExtractor"
@@ -69,7 +203,7 @@ class CustomActivationRetrieval:
 
 @dataclass(frozen=True)
 class TreeLeafRetrieval:
-    """Configuration for paper-faithful single-tree case retrieval."""
+    """Deprecated. Use :class:`TreeLeaf`."""
 
     model: Any
     overflow: str = "truncate"
@@ -78,7 +212,7 @@ class TreeLeafRetrieval:
 
 @dataclass(frozen=True)
 class ForestProximityRetrieval:
-    """Configuration for random-forest shared-leaf proximity retrieval."""
+    """Deprecated. Use :class:`ForestProximity`."""
 
     model: Any
 
@@ -86,6 +220,7 @@ class ForestProximityRetrieval:
 # ---------------------------------------------------------------------------
 # Abstract base
 # ---------------------------------------------------------------------------
+
 
 class ActivationExtractor(ABC):
     """
@@ -140,6 +275,7 @@ class ActivationExtractor(ABC):
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _apply_hidden_activation(a: np.ndarray, name: str) -> np.ndarray:
     """Apply sklearn MLP hidden-layer activation in-place and return *a*."""
     if name == "relu":
@@ -158,6 +294,7 @@ def _apply_hidden_activation(a: np.ndarray, name: str) -> np.ndarray:
         # Fall back to sklearn internals for any future activation names
         try:
             from sklearn.neural_network._base import ACTIVATIONS  # type: ignore
+
             ACTIVATIONS[name](a)
         except (ImportError, KeyError):
             logger.warning("Unknown activation '%s'; treating as identity.", name)
@@ -167,6 +304,7 @@ def _apply_hidden_activation(a: np.ndarray, name: str) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # sklearn MLP extractor
 # ---------------------------------------------------------------------------
+
 
 class SklearnMLPActivationExtractor(ActivationExtractor):
     """
@@ -225,14 +363,14 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
         self.use_output_weights = use_output_weights
         self.input_transform = input_transform
         self.output_class = output_class
-        self._model = None
+        self._model: Any = None
         # Single-layer modes
-        self._output_weights = None
-        self._activation_scaler = None
+        self._output_weights: Any = None
+        self._activation_scaler: Any = None
         # all_hidden mode
-        self._layer_scalers = None
-        self._layer_position_weights = None
-        self._all_hidden_output_weights = None
+        self._layer_scalers: Any = None
+        self._layer_position_weights: Any = None
+        self._all_hidden_output_weights: Any = None
 
     # ------------------------------------------------------------------
     def fit(self, model, X: np.ndarray) -> "SklearnMLPActivationExtractor":
@@ -282,9 +420,7 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
         return self
 
     # ------------------------------------------------------------------
-    def _fit_all_hidden(
-        self, model, X: np.ndarray
-    ) -> None:
+    def _fit_all_hidden(self, model, X: np.ndarray) -> None:
         """Fit per-layer StandardScalers and layer-position weights."""
         from sklearn.preprocessing import StandardScaler
 
@@ -312,8 +448,7 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
             weights = self._output_importance(output_coefs)
             total = weights.sum()
             self._all_hidden_output_weights = (
-                weights / total * len(weights) if total > 0
-                else np.ones(len(weights))
+                weights / total * len(weights) if total > 0 else np.ones(len(weights))
             )
         else:
             self._all_hidden_output_weights = None
@@ -367,7 +502,9 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
         if self.input_transform is not None:
             transform = getattr(self.input_transform, "transform", self.input_transform)
             if not callable(transform):
-                raise TypeError("input_transform must be callable or provide transform().")
+                raise TypeError(
+                    "input_transform must be callable or provide transform()."
+                )
             X = transform(X)
         if hasattr(X, "toarray"):
             X = X.toarray()
@@ -453,6 +590,7 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
 # Decision-tree / random-forest extractor
 # ---------------------------------------------------------------------------
 
+
 class DecisionTreeActivationExtractor(ActivationExtractor):
     """
     Extracts leaf-node identity from a fitted sklearn
@@ -479,14 +617,14 @@ class DecisionTreeActivationExtractor(ActivationExtractor):
 
     def __init__(self, max_one_hot_dims: int = 2000):
         self.max_one_hot_dims = max_one_hot_dims
-        self._model = None
+        self._model: Any = None
         self._encoding: str = "one_hot"  # or "raw"
         self._is_forest: bool = False
         # one_hot mode
-        self._leaf_offsets: Optional[np.ndarray] = None
+        self._leaf_offsets: Any = None
         self._total_dims: int = 0
         # raw mode
-        self._max_per_tree: Optional[np.ndarray] = None
+        self._max_per_tree: Any = None
 
     # ------------------------------------------------------------------
     def fit(self, model, X: np.ndarray) -> "DecisionTreeActivationExtractor":
@@ -497,9 +635,9 @@ class DecisionTreeActivationExtractor(ActivationExtractor):
         self._is_forest = leaf_ids.ndim == 2
 
         if self._is_forest:
-            max_per_tree = np.array([
-                estimator.tree_.node_count - 1 for estimator in model.estimators_
-            ])
+            max_per_tree = np.array(
+                [estimator.tree_.node_count - 1 for estimator in model.estimators_]
+            )
             total_dims = int((max_per_tree + 1).sum())
             if total_dims <= self.max_one_hot_dims:
                 self._encoding = "one_hot"
@@ -526,8 +664,10 @@ class DecisionTreeActivationExtractor(ActivationExtractor):
         logger.info(
             "DecisionTreeActivationExtractor: encoding=%s, dims=%d, forest=%s",
             self._encoding,
-            self._total_dims if self._encoding == "one_hot" else (
-                leaf_ids.shape[1] if self._is_forest else 1
+            (
+                self._total_dims
+                if self._encoding == "one_hot"
+                else (leaf_ids.shape[1] if self._is_forest else 1)
             ),
             self._is_forest,
         )
@@ -548,7 +688,7 @@ class DecisionTreeActivationExtractor(ActivationExtractor):
     # ------------------------------------------------------------------
     def _to_one_hot(self, leaf_ids: np.ndarray) -> np.ndarray:
         n_samples = leaf_ids.shape[0]
-        result = np.zeros((n_samples, self._total_dims), dtype=np.float32)
+        result: np.ndarray = np.zeros((n_samples, self._total_dims), dtype=np.float32)
 
         if self._is_forest:
             for t, offset in enumerate(self._leaf_offsets):
@@ -593,6 +733,7 @@ class DecisionTreeActivationExtractor(ActivationExtractor):
 # Generic callable extractor
 # ---------------------------------------------------------------------------
 
+
 class CallableActivationExtractor(ActivationExtractor):
     """
     Generic extractor for any model type (PyTorch, Keras, XGBoost, etc.).
@@ -634,7 +775,7 @@ class CallableActivationExtractor(ActivationExtractor):
         if not callable(fn):
             raise TypeError("fn must be callable.")
         self._fn = fn
-        self._model = None
+        self._model: Any = None
 
     def fit(self, model, X: np.ndarray) -> "CallableActivationExtractor":
         self._model = model

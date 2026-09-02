@@ -22,8 +22,7 @@ def test_retrieval_matrix_varies_one_dimension_at_a_time(tmp_path):
         repetitions=3,
     )
     shapes = {
-        (result.n_samples, result.n_features, result.n_classes)
-        for result in results
+        (result.n_samples, result.n_features, result.n_classes) for result in results
     }
     assert len(results) == 8
     assert len(shapes) == 4
@@ -40,25 +39,23 @@ def test_retrieval_matrix_varies_one_dimension_at_a_time(tmp_path):
     )
 
 
-def _write_comparison_csv(
-    path, query_times=(1.0, 2.0), fit_times=(0.1, 0.2)
-):
+def _write_comparison_csv(path, query_times=(1.0, 2.0), fit_times=(0.1, 0.2)):
     rows = []
     for strategy in ("activation_predicted_class", "forest_proximity"):
-        for n_samples, query_time, fit_time in zip(
-            (100, 200), query_times, fit_times
-        ):
-            rows.append({
-                "strategy": strategy,
-                "n_samples": n_samples,
-                "n_features": 10,
-                "n_classes": 2,
-                "query_time_ms": query_time,
-                "query_time_std_ms": 0.01,
-                "repetitions": 5,
-                "peak_memory_mb": n_samples / 100,
-                "fit_time_s": fit_time,
-            })
+        for n_samples, query_time, fit_time in zip((100, 200), query_times, fit_times):
+            rows.append(
+                {
+                    "strategy": strategy,
+                    "n_samples": n_samples,
+                    "n_features": 10,
+                    "n_classes": 2,
+                    "query_time_ms": query_time,
+                    "query_time_std_ms": 0.01,
+                    "repetitions": 5,
+                    "peak_memory_mb": n_samples / 100,
+                    "fit_time_s": fit_time,
+                }
+            )
     pd.DataFrame(rows).to_csv(path, index=False)
 
 

@@ -8,6 +8,7 @@ from case_explainer.explanation import Neighbor, Explanation
 
 # --- Helpers ---
 
+
 def _make_neighbor(index=0, distance=0.1, label=1, n_features=4, metadata=None):
     return Neighbor(
         index=index,
@@ -47,6 +48,7 @@ def _make_explanation(
 
 # --- Neighbor ---
 
+
 class TestNeighbor:
     def test_repr_no_metadata(self):
         n = _make_neighbor()
@@ -72,6 +74,7 @@ class TestNeighbor:
 
 # --- Explanation init ---
 
+
 class TestExplanationInit:
     def test_default_feature_names(self):
         exp = _make_explanation(feature_names=None)
@@ -95,6 +98,7 @@ class TestExplanationInit:
 
 
 # --- get_predicted_class_name / get_true_class_name ---
+
 
 class TestClassNames:
     def test_predicted_class_name_with_mapping(self):
@@ -120,6 +124,7 @@ class TestClassNames:
 
 # --- is_correct ---
 
+
 class TestIsCorrect:
     def test_correct_prediction(self):
         exp = _make_explanation(predicted_class=1, true_class=1)
@@ -135,6 +140,7 @@ class TestIsCorrect:
 
 
 # --- summary ---
+
 
 class TestSummary:
     def test_summary_contains_header(self):
@@ -188,15 +194,23 @@ class TestSummary:
 
 # --- to_dict ---
 
+
 class TestToDict:
     def test_keys_present(self):
         exp = _make_explanation()
         d = exp.to_dict()
         expected_keys = {
-            "test_index", "test_sample", "predicted_class",
-            "predicted_class_name", "true_class", "true_class_name",
-            "is_correct", "correspondence", "correspondence_interpretation",
-            "neighbors", "feature_names",
+            "test_index",
+            "test_sample",
+            "predicted_class",
+            "predicted_class_name",
+            "true_class",
+            "true_class_name",
+            "is_correct",
+            "correspondence",
+            "correspondence_interpretation",
+            "neighbors",
+            "feature_names",
         }
         assert expected_keys == set(d.keys())
 
@@ -220,6 +234,7 @@ class TestToDict:
 
 
 # --- plot ---
+
 
 class TestPlot:
     @patch("case_explainer.explanation.plt")
@@ -263,6 +278,7 @@ class TestPlot:
 
 
 # --- __repr__ ---
+
 
 class TestExplanationRepr:
     def test_repr_contains_fields(self):

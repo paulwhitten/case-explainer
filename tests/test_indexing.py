@@ -13,16 +13,19 @@ from case_explainer.indexing import (
 @pytest.fixture
 def small_data():
     """5 points in 2-D with predictable nearest neighbors."""
-    return np.array([
-        [0.0, 0.0],
-        [1.0, 0.0],
-        [0.0, 1.0],
-        [10.0, 10.0],
-        [10.0, 11.0],
-    ])
+    return np.array(
+        [
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [10.0, 10.0],
+            [10.0, 11.0],
+        ]
+    )
 
 
 # --- BruteForceIndex ---
+
 
 class TestBruteForceIndex:
     def test_build_and_query(self, small_data):
@@ -44,6 +47,7 @@ class TestBruteForceIndex:
 
 # --- KDTreeIndex ---
 
+
 class TestKDTreeIndex:
     def test_build_and_query(self, small_data):
         idx = KDTreeIndex(leaf_size=2)
@@ -62,6 +66,7 @@ class TestKDTreeIndex:
 
 # --- BallTreeIndex ---
 
+
 class TestBallTreeIndex:
     def test_build_and_query(self, small_data):
         idx = BallTreeIndex(leaf_size=2)
@@ -79,43 +84,49 @@ class TestBallTreeIndex:
 
 # --- create_index factory ---
 
+
 class TestCreateIndex:
     def test_brute(self):
-        idx = create_index('brute')
+        idx = create_index("brute")
         assert isinstance(idx, BruteForceIndex)
 
     def test_kd_tree(self):
-        idx = create_index('kd_tree')
+        idx = create_index("kd_tree")
         assert isinstance(idx, KDTreeIndex)
 
     def test_ball_tree(self):
-        idx = create_index('ball_tree')
+        idx = create_index("ball_tree")
         assert isinstance(idx, BallTreeIndex)
 
     def test_kd_tree_kwargs(self):
-        idx = create_index('kd_tree', leaf_size=10)
+        idx = create_index("kd_tree", leaf_size=10)
         assert idx.leaf_size == 10
 
     def test_ball_tree_kwargs(self):
-        idx = create_index('ball_tree', leaf_size=15)
+        idx = create_index("ball_tree", leaf_size=15)
         assert idx.leaf_size == 15
 
     def test_unknown_method_raises(self):
         with pytest.raises(ValueError, match="Unknown index method"):
-            create_index('magic_tree')
+            create_index("magic_tree")
 
 
 # --- Consistency across strategies ---
+
 
 class TestConsistency:
     def test_all_strategies_find_same_nearest(self, small_data):
         query_point = np.array([0.5, 0.5])
         k = 3
         results = {}
-        for name, cls in [('brute', BruteForceIndex), ('kd', KDTreeIndex), ('ball', BallTreeIndex)]:
+        for name, cls in [
+            ("brute", BruteForceIndex),
+            ("kd", KDTreeIndex),
+            ("ball", BallTreeIndex),
+        ]:
             idx = cls()
             idx.build(small_data)
             dists, inds = idx.query(query_point, k=k)
             results[name] = set(inds)
         # All strategies should find the same k neighbors
-        assert results['brute'] == results['kd'] == results['ball']
+        assert results["brute"] == results["kd"] == results["ball"]

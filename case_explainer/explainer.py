@@ -9,22 +9,31 @@ import logging
 import warnings
 import numpy as np
 import pandas as pd
+from dataclasses import replace
 from typing import List, Optional, Dict, Any, Union
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import NearestNeighbors
 
-logger = logging.getLogger(__name__)
-
 from .explanation import Explanation, Neighbor
 from .metrics import compute_correspondence
-from ._compat import LEGACY_ACTIVATION_WARNING
+from ._compat import LEGACY_ACTIVATION_WARNING, RETRIEVAL_PARAM_DEPRECATION
 from .activations import (
     ActivationExtractor,
+    Predictor,
+    Features,
+    HiddenActivations,
+    CustomActivations,
+    TreeLeaf,
+    ForestProximity,
+    Blend,
+    SimilarityStrategy,
     HiddenActivationRetrieval,
     CustomActivationRetrieval,
     TreeLeafRetrieval,
     ForestProximityRetrieval,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _label_value(value: Any) -> Any:
@@ -32,20 +41,278 @@ def _label_value(value: Any) -> Any:
     return value.item() if isinstance(value, np.generic) else value
 
 
+def _resolve_similarity(
+    similarity: Union[str, "SimilarityStrategy"],
+    model: Optional[Any],
+) -> Optional[Any]:
+    """Normalize a public ``similarity`` strategy into the internal retrieval object.
+
+    Returns an internal ``*Retrieval`` dataclass, or ``None`` for feature space.
+    """
+    if similarity is None or isinstance(similarity, Features):
+        return None
+    if isinstance(similarity, str):
+        key = similarity.strip().lower()
+        if key in ("features", "feature"):
+            return None
+        if key in ("activations", "activation", "hidden"):
+            if model is None:
+                raise ValueError("similarity='activations' requires model= to be set")
+            return HiddenActivationRetrieval(model=model)
+        raise ValueError(
+            f"Unknown similarity {similarity!r}; expected 'features', "
+            "'activations', or a strategy object"
+        )
+    if isinstance(similarity, Blend):
+        inner = _resolve_similarity(similarity.strategy, model)
+        if not isinstance(
+            inner, (HiddenActivationRetrieval, CustomActivationRetrieval)
+        ):
+            raise TypeError("Blend wraps HiddenActivations or CustomActivations")
+        return replace(inner, blend_alpha=float(similarity.features))
+    if isinstance(similarity, HiddenActivations):
+        return HiddenActivationRetrieval(
+            model=similarity.model,
+            layer=similarity.layer,
+            use_output_weights=True,
+            output_weighting=similarity.output_weighting,
+            blend_alpha=0.0,
+            input_transform=similarity.input_transform,
+        )
+    if isinstance(similarity, CustomActivations):
+        return CustomActivationRetrieval(
+            model=similarity.model,
+            extractor=similarity.extractor,
+            blend_alpha=0.0,
+        )
+    if isinstance(similarity, TreeLeaf):
+        return TreeLeafRetrieval(
+            model=similarity.model,
+            overflow=similarity.overflow,
+            within_leaf=similarity.within_leaf,
+        )
+    if isinstance(similarity, ForestProximity):
+        return ForestProximityRetrieval(model=similarity.model)
+    if isinstance(
+        similarity,
+        (
+            HiddenActivationRetrieval,
+            CustomActivationRetrieval,
+            TreeLeafRetrieval,
+            ForestProximityRetrieval,
+        ),
+    ):
+        # Already an internal retrieval object (e.g. passed via retrieval=).
+        return similarity
+    raise TypeError(
+        "similarity must be a strategy object (Features, HiddenActivations, "
+        "CustomActivations, TreeLeaf, ForestProximity, Blend) or a string"
+    )
+
+
+class _RetrievalStrategy:
+    """Feature-space retrieval on the shared NearestNeighbors index.
+
+    Subclasses encapsulate one retrieval mode so ``CaseExplainer`` dispatches
+    both index construction (:meth:`build_index`) and query-time behaviour
+    through a single ``self._strategy`` object instead of a chain of per-mode
+    flags.
+    """
+
+    def build_index(self, explainer, X_train, model):
+        """Build the feature-space k-NN index on the shared explainer."""
+        explainer._act_scaler = None
+        explainer._build_nn_index(explainer.X_train_scaled)
+
+    def query_vector(self, explainer, test_sample, test_sample_scaled):
+        return test_sample_scaled
+
+    def neighbors(
+        self,
+        explainer,
+        test_sample,
+        test_sample_scaled,
+        test_vec,
+        predicted_class,
+        k,
+    ):
+        distances, indices = explainer.nn_index.kneighbors([test_vec], n_neighbors=k)
+        return distances[0], indices[0]
+
+    def mode_label(self, explainer):
+        return "features"
+
+
+class _ActivationStrategy(_RetrievalStrategy):
+    """Activation- or blend-space retrieval on the shared index."""
+
+    def build_index(self, explainer, X_train, model):
+        extractor = explainer.activation_extractor
+        logger.info(
+            "Extracting training activations with %s (blend_alpha=%.2f)...",
+            type(extractor).__name__,
+            explainer.blend_alpha,
+        )
+        raw_activations = extractor.fit_transform(model, X_train)
+        # Built-in extractors return normalized, metric-ready coordinates.
+        if getattr(extractor, "metric_ready", False):
+            explainer._act_scaler = None
+            A_scaled = raw_activations
+        else:
+            explainer._act_scaler = StandardScaler()
+            A_scaled = explainer._act_scaler.fit_transform(raw_activations)
+
+        alpha = explainer.blend_alpha
+        if alpha == 0.0:
+            X_for_index = A_scaled
+        elif alpha == 1.0:
+            X_for_index = explainer.X_train_scaled
+        else:
+            X_for_index = np.hstack(
+                [
+                    np.sqrt(alpha) * explainer.X_train_scaled,
+                    np.sqrt(1.0 - alpha) * A_scaled,
+                ]
+            )
+        logger.info(
+            "Index space: %s, dims=%d",
+            self.mode_label(explainer),
+            X_for_index.shape[1],
+        )
+        explainer._build_nn_index(X_for_index)
+
+    def query_vector(self, explainer, test_sample, test_sample_scaled):
+        raw_act = explainer.activation_extractor.transform([test_sample])
+        A_scaled = (
+            raw_act
+            if explainer._act_scaler is None
+            else explainer._act_scaler.transform(raw_act)
+        )
+        alpha = explainer.blend_alpha
+        if alpha == 0.0:
+            return A_scaled[0]
+        if alpha == 1.0:
+            return test_sample_scaled
+        return np.hstack(
+            [
+                np.sqrt(alpha) * test_sample_scaled,
+                np.sqrt(1.0 - alpha) * A_scaled[0],
+            ]
+        )
+
+    def mode_label(self, explainer):
+        alpha = explainer.blend_alpha
+        if alpha == 0.0:
+            return "activations"
+        if alpha == 1.0:
+            return "features"
+        return f"hybrid(alpha={alpha:.2f})"
+
+
+class _TreeLeafStrategy(_RetrievalStrategy):
+    """Same-leaf decision-tree retrieval."""
+
+    def build_index(self, explainer, X_train, model):
+        super().build_index(explainer, X_train, model)
+        explainer._training_leaf_ids = np.asarray(
+            explainer.retrieval.model.apply(X_train)
+        )
+
+    def query_vector(self, explainer, test_sample, test_sample_scaled):
+        return None
+
+    def neighbors(
+        self,
+        explainer,
+        test_sample,
+        test_sample_scaled,
+        test_vec,
+        predicted_class,
+        k,
+    ):
+        return explainer._tree_neighbors(test_sample, test_sample_scaled, k)
+
+    def mode_label(self, explainer):
+        return "tree_leaf"
+
+
+class _ForestProximityStrategy(_RetrievalStrategy):
+    """Random-forest shared-leaf proximity retrieval."""
+
+    def build_index(self, explainer, X_train, model):
+        super().build_index(explainer, X_train, model)
+        explainer._training_leaf_ids = np.asarray(
+            explainer.retrieval.model.apply(X_train)
+        )
+
+    def query_vector(self, explainer, test_sample, test_sample_scaled):
+        return None
+
+    def neighbors(
+        self,
+        explainer,
+        test_sample,
+        test_sample_scaled,
+        test_vec,
+        predicted_class,
+        k,
+    ):
+        return explainer._forest_neighbors(test_sample, k)
+
+    def mode_label(self, explainer):
+        return "forest_proximity"
+
+
+class _ClassActivationStrategy(_RetrievalStrategy):
+    """Predicted-class-weighted activation retrieval with per-class indexes."""
+
+    def __init__(self, retrieval):
+        self._retrieval = retrieval
+
+    def build_index(self, explainer, X_train, model):
+        explainer._initialize_class_activation_retrieval(
+            self._retrieval, X_train, model
+        )
+        # A feature-space index is retained for parity with other modes.
+        super().build_index(explainer, X_train, model)
+
+    def query_vector(self, explainer, test_sample, test_sample_scaled):
+        return None
+
+    def neighbors(
+        self,
+        explainer,
+        test_sample,
+        test_sample_scaled,
+        test_vec,
+        predicted_class,
+        k,
+    ):
+        return explainer._class_activation_neighbors(
+            test_sample, test_sample_scaled, predicted_class, k
+        )
+
+    def mode_label(self, explainer):
+        alpha = explainer.blend_alpha
+        if alpha == 0.0:
+            return "activations"
+        return f"hybrid(alpha={alpha:.2f})"
+
+
 class CaseExplainer:
     """
     General-purpose case-based explainability module.
-    
+
     Provides model-agnostic explanations through training set precedent
     and nearest neighbor correspondence. Builds k-NN index during initialization
     for fast lookups during explanation.
-    
+
     Based on refined Method 2 from hardware trojan detection pipeline:
     - Pre-builds NearestNeighbors index on training data
     - Uses distance-weighted correspondence: weight = 1 / (distance + 1)^3
     - Supports class weights for imbalanced datasets
     - Compatible with any classifier (sklearn, XGBoost, etc.)
-    
+
     Example:
         >>> from case_explainer import CaseExplainer
         >>> explainer = CaseExplainer(X_train, y_train, k=5)
@@ -53,7 +320,7 @@ class CaseExplainer:
         >>> print(f"Correspondence: {explanation.correspondence:.2%}")
         >>> explanation.plot()
     """
-    
+
     def __init__(
         self,
         X_train: Union[np.ndarray, pd.DataFrame],
@@ -61,27 +328,30 @@ class CaseExplainer:
         k: int = 5,
         feature_names: Optional[List[str]] = None,
         class_names: Optional[Dict[Any, str]] = None,
-        metric: str = 'euclidean',
-        algorithm: str = 'auto',
+        metric: str = "euclidean",
+        algorithm: str = "auto",
         scale_data: bool = True,
         class_weights: Optional[Dict[Any, float]] = None,
         metadata: Optional[Dict[str, List]] = None,
         n_jobs: int = -1,
-        activation_extractor: Optional[Any] = None,
-        model: Optional[Any] = None,
+        similarity: Optional[Union[str, SimilarityStrategy]] = None,
+        activation_extractor: Optional[ActivationExtractor] = None,
+        model: Optional[Predictor] = None,
         blend_alpha: float = 0.0,
         activation_layer: Optional[Union[str, int]] = None,
         use_output_weights: bool = True,
-        retrieval: Optional[Union[
-            HiddenActivationRetrieval,
-            CustomActivationRetrieval,
-            TreeLeafRetrieval,
-            ForestProximityRetrieval,
-        ]] = None,
+        retrieval: Optional[
+            Union[
+                HiddenActivationRetrieval,
+                CustomActivationRetrieval,
+                TreeLeafRetrieval,
+                ForestProximityRetrieval,
+            ]
+        ] = None,
     ):
         """
         Initialize CaseExplainer with training data and build k-NN index.
-        
+
         Args:
             X_train: Training features (n_samples, n_features)
             y_train: Training labels (n_samples,)
@@ -96,32 +366,35 @@ class CaseExplainer:
             metadata: Optional dict with metadata for each training sample
                      e.g., {'sample_id': [...], 'source': [...], ...}
             n_jobs: Number of parallel jobs for k-NN search (-1 = all CPUs)
-            activation_extractor: Optional ActivationExtractor instance. When
-                provided, the k-NN index is built on model activations (or a
-                blend of activations and features) instead of raw features.
-                Implements Caruana et al. (1999).
-            model: Trained model required when activation_extractor is set.
-                   Used to extract activations from the training data.
-            blend_alpha: Controls the feature/activation blend when
-                activation_extractor is set.
-                A value of 0.0 uses pure activations, 1.0 uses pure features,
-                and intermediate values build an index on
-                ``[sqrt(alpha)*X_scaled, sqrt(1-alpha)*A_scaled]``.
-            activation_layer: Convenience shorthand for
-                ``SklearnMLPActivationExtractor(layer=..., use_output_weights=...)``.
-                Accepted values: ``'last_hidden'`` (default), ``'all_hidden'``
-                (concatenated, position-weighted), or an integer layer index.
-                Mutually exclusive with ``activation_extractor``.
-                Requires ``model`` (a fitted ``MLPClassifier``) to also be set.
-            use_output_weights: When ``activation_layer`` is used, controls
-                whether per-unit output-connection weighting (Caruana §5) is
-                applied to the last hidden layer.  Ignored when
-                ``activation_extractor`` is supplied directly.
-            retrieval: Explicit retrieval configuration. Use
-                ``HiddenActivationRetrieval`` for an sklearn MLP or
-                ``TreeLeafRetrieval`` for same-leaf decision-tree retrieval or
-                ``ForestProximityRetrieval`` for shared-leaf forest proximity.
-                Mutually exclusive with the legacy activation parameters.
+            similarity: How neighbor similarity is computed. This is the single
+                knob for retrieval mode. Accepts:
+
+                * ``None`` (default) or ``"features"`` / ``Features()`` — raw
+                  feature space.
+                * ``"activations"`` — hidden-activation space of ``model``
+                  (which must be a fitted ``MLPClassifier``).
+                * A strategy object: ``HiddenActivations(...)``,
+                  ``CustomActivations(...)``, ``TreeLeaf(...)``,
+                  ``ForestProximity(...)``, or ``Blend(strategy, features=...)``
+                  to mix an activation space with features.
+
+                The ``model`` lives on the strategy, so an invalid combination
+                (e.g. activations without a model) cannot be expressed.
+            activation_extractor: Deprecated. Use
+                ``similarity=CustomActivations(model=..., extractor=...)``.
+            model: Trained model. Required only for the string shorthand
+                ``similarity="activations"``; otherwise the model lives on the
+                strategy object.
+            blend_alpha: Deprecated. Use ``similarity=Blend(strategy,
+                features=...)``.
+            activation_layer: Deprecated. Use
+                ``similarity=HiddenActivations(model=..., layer=...)``.
+            use_output_weights: Deprecated. Use
+                ``similarity=HiddenActivations(..., output_weighting=...)``
+                where ``"none"`` replaces ``use_output_weights=False``.
+            retrieval: Deprecated. Use ``similarity=`` with the renamed
+                strategy classes (``HiddenActivations``, ``CustomActivations``,
+                ``TreeLeaf``, ``ForestProximity``).
         """
         # Convert inputs to numpy arrays
         if isinstance(X_train, pd.DataFrame):
@@ -130,22 +403,26 @@ class CaseExplainer:
             X_train = X_train.values
         else:
             X_train = np.asarray(X_train)
-        
+
         if isinstance(y_train, (pd.Series, list)):
             y_train = np.asarray(y_train)
-        
+
         # Store original data
         self.X_train_original = X_train.copy()
         self.y_train = y_train.copy()
-        
+
         # Validate shapes
         if len(X_train) != len(y_train):
-            raise ValueError(f"X_train and y_train must have same length "
-                           f"(got {len(X_train)} and {len(y_train)})")
-        
+            raise ValueError(
+                f"X_train and y_train must have same length "
+                f"(got {len(X_train)} and {len(y_train)})"
+            )
+
         self.n_samples, self.n_features = X_train.shape
         self.k = k
-        self.feature_names = feature_names or [f"feature_{i}" for i in range(self.n_features)]
+        self.feature_names = feature_names or [
+            f"feature_{i}" for i in range(self.n_features)
+        ]
         self.class_names = class_names or {}
         self.metric = metric
         self.algorithm = algorithm
@@ -153,12 +430,33 @@ class CaseExplainer:
         self.class_weights = class_weights or {}
         self.metadata = metadata or {}
         self.n_jobs = n_jobs
+        # Resolve the unified similarity front-end into the internal retrieval
+        # object before the legacy handling below runs.
+        if similarity is not None:
+            if retrieval is not None:
+                raise ValueError("Pass either similarity= or retrieval=, not both")
+            if activation_extractor is not None or activation_layer is not None:
+                raise ValueError(
+                    "similarity= cannot be combined with the deprecated "
+                    "activation_extractor/activation_layer parameters"
+                )
+            if blend_alpha != 0.0 or use_output_weights is not True:
+                raise ValueError(
+                    "Configure blending and output weighting on the similarity "
+                    "strategy (e.g. Blend(...), "
+                    "HiddenActivations(output_weighting=...)), not on CaseExplainer"
+                )
+            retrieval = _resolve_similarity(similarity, model)
+        elif retrieval is not None:
+            warnings.warn(
+                RETRIEVAL_PARAM_DEPRECATION,
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.retrieval = retrieval
-        self._tree_retrieval = None
-        self._forest_retrieval = None
         self._class_activation_extractors = None
         self._class_nn_indexes = None
-        self._pending_class_retrieval = None
+        pending_class_retrieval = None
         self._model = model
         if retrieval is None and (
             activation_extractor is not None or activation_layer is not None
@@ -183,8 +481,11 @@ class CaseExplainer:
             self._model = model
             if isinstance(retrieval, HiddenActivationRetrieval):
                 from .activations import SklearnMLPActivationExtractor
+
                 if retrieval.output_weighting not in (
-                    "mean_abs", "predicted_class", "none"
+                    "mean_abs",
+                    "predicted_class",
+                    "none",
                 ):
                     raise ValueError(
                         "output_weighting must be 'mean_abs', "
@@ -195,7 +496,7 @@ class CaseExplainer:
                 else:
                     output_weighting = retrieval.output_weighting
                 if output_weighting == "predicted_class":
-                    self._pending_class_retrieval = retrieval
+                    pending_class_retrieval = retrieval
                 else:
                     activation_extractor = SklearnMLPActivationExtractor(
                         layer=retrieval.layer,
@@ -213,10 +514,8 @@ class CaseExplainer:
                 blend_alpha = retrieval.blend_alpha
             elif isinstance(retrieval, TreeLeafRetrieval):
                 self._validate_tree_retrieval(retrieval)
-                self._tree_retrieval = retrieval
             elif isinstance(retrieval, ForestProximityRetrieval):
                 self._validate_forest_retrieval(retrieval)
-                self._forest_retrieval = retrieval
             else:
                 raise TypeError(
                     "retrieval must be HiddenActivationRetrieval, "
@@ -233,6 +532,7 @@ class CaseExplainer:
             )
         if activation_layer is not None:
             from .activations import SklearnMLPActivationExtractor
+
             activation_extractor = SklearnMLPActivationExtractor(
                 layer=activation_layer,
                 use_output_weights=use_output_weights,
@@ -240,14 +540,16 @@ class CaseExplainer:
             self.activation_extractor = activation_extractor
         if activation_extractor is not None and model is None:
             raise ValueError("model must be provided when activation_extractor is set")
-        
+
         # Validate metadata
         if self.metadata:
             for key, values in self.metadata.items():
                 if len(values) != self.n_samples:
-                    raise ValueError(f"Metadata '{key}' has {len(values)} items, "
-                                   f"expected {self.n_samples}")
-        
+                    raise ValueError(
+                        f"Metadata '{key}' has {len(values)} items, "
+                        f"expected {self.n_samples}"
+                    )
+
         # Scale data if requested
         if scale_data:
             self.scaler = StandardScaler()
@@ -256,68 +558,39 @@ class CaseExplainer:
             self.scaler = None
             self.X_train_scaled = X_train.copy()
 
-        if self._pending_class_retrieval is not None:
-            self._initialize_class_activation_retrieval(
-                self._pending_class_retrieval, X_train, model
-            )
-        
-        # --- Build the index data (features, activations, or hybrid blend) ---
-        if activation_extractor is not None:
-            logger.info(
-                "Extracting training activations with %s (blend_alpha=%.2f)...",
-                type(activation_extractor).__name__, blend_alpha
-            )
-            raw_activations = activation_extractor.fit_transform(model, X_train)
-            # Built-in extractors return normalized, metric-ready coordinates.
-            if getattr(activation_extractor, "metric_ready", False):
-                self._act_scaler = None
-                A_scaled = raw_activations
-            else:
-                self._act_scaler = StandardScaler()
-                A_scaled = self._act_scaler.fit_transform(raw_activations)
+        # The selected strategy owns index construction and query-time dispatch.
+        self._strategy = self._make_strategy(pending_class_retrieval)
+        self._strategy.build_index(self, X_train, model)
 
-            alpha = self.blend_alpha
-            if alpha == 0.0:
-                X_for_index = A_scaled
-            elif alpha == 1.0:
-                X_for_index = self.X_train_scaled
-            else:
-                X_for_index = np.hstack([
-                    np.sqrt(alpha) * self.X_train_scaled,
-                    np.sqrt(1.0 - alpha) * A_scaled,
-                ])
-            logger.info(
-                "Index space: %s, dims=%d",
-                "activations" if alpha == 0.0 else
-                "features" if alpha == 1.0 else
-                f"hybrid(alpha={alpha:.2f})",
-                X_for_index.shape[1],
-            )
-        else:
-            self._act_scaler = None
-            X_for_index = self.X_train_scaled
-
-        if self._tree_retrieval is not None:
-            self._training_leaf_ids = np.asarray(
-                self._tree_retrieval.model.apply(X_train)
-            )
-        elif self._forest_retrieval is not None:
-            self._training_leaf_ids = np.asarray(
-                self._forest_retrieval.model.apply(X_train)
-            )
-
-        # Build k-NN index using sklearn's NearestNeighbors
-        # This is done once during initialization for efficiency
-        logger.info("Building k-NN index (k=%d, metric=%s, algorithm=%s)...", k, metric, algorithm)
+    def _build_nn_index(self, X_for_index):
+        """Fit the shared NearestNeighbors index on ``X_for_index``."""
+        logger.info(
+            "Building k-NN index (k=%d, metric=%s, algorithm=%s)...",
+            self.k,
+            self.metric,
+            self.algorithm,
+        )
         self.nn_index = NearestNeighbors(
-            n_neighbors=min(k, self.n_samples),  # Handle case where k > n_samples
-            metric=metric,
-            algorithm=algorithm,
-            n_jobs=n_jobs
+            n_neighbors=min(self.k, self.n_samples),  # Handle k > n_samples
+            metric=self.metric,
+            algorithm=self.algorithm,
+            n_jobs=self.n_jobs,
         )
         self.nn_index.fit(X_for_index)
         logger.info("Index built on %d training samples", self.n_samples)
-    
+
+    def _make_strategy(self, pending_class_retrieval) -> _RetrievalStrategy:
+        """Select the retrieval strategy for the configured mode."""
+        if isinstance(self.retrieval, TreeLeafRetrieval):
+            return _TreeLeafStrategy()
+        if isinstance(self.retrieval, ForestProximityRetrieval):
+            return _ForestProximityStrategy()
+        if pending_class_retrieval is not None:
+            return _ClassActivationStrategy(pending_class_retrieval)
+        if self.activation_extractor is not None:
+            return _ActivationStrategy()
+        return _RetrievalStrategy()
+
     def explain_instance(
         self,
         test_sample: Union[np.ndarray, pd.Series, List],
@@ -327,16 +600,16 @@ class CaseExplainer:
         model: Optional[Any] = None,
         k: Optional[int] = None,
         return_provenance: bool = True,
-        distance_weighted: bool = True
+        distance_weighted: bool = True,
     ) -> Explanation:
         """
         Explain a prediction using case-based reasoning with k-NN precedent.
-        
+
         This method:
         1. Finds k nearest neighbors in the pre-built index
         2. Computes weighted correspondence based on neighbor labels
         3. Returns explanation with neighbor details and correspondence score
-        
+
         Args:
             test_sample: Sample to explain (n_features,)
             test_index: Index in test set (optional, for tracking)
@@ -346,112 +619,49 @@ class CaseExplainer:
             k: Number of neighbors (optional, uses default from init if not provided)
             return_provenance: Include metadata in explanation
             distance_weighted: Use distance weighting for correspondence
-            
+
         Returns:
             Explanation object with neighbors and correspondence
         """
         # Convert test sample to numpy array
         if isinstance(test_sample, (pd.Series, list)):
             test_sample = np.asarray(test_sample)
-        
+
         if len(test_sample) != self.n_features:
-            raise ValueError(f"test_sample has {len(test_sample)} features, "
-                           f"expected {self.n_features}")
-        
+            raise ValueError(
+                f"test_sample has {len(test_sample)} features, "
+                f"expected {self.n_features}"
+            )
+
         # Scale test sample if needed
         if self.scale_data:
             test_sample_scaled = self.scaler.transform([test_sample])[0]
         else:
             test_sample_scaled = test_sample.copy()
 
-        # Build the query vector for the index (mirrors __init__ logic)
-        if self._class_activation_extractors is not None:
-            test_vec = None
-        elif self.activation_extractor is not None:
-            raw_act = self.activation_extractor.transform([test_sample])
-            A_scaled = (
-                raw_act if self._act_scaler is None
-                else self._act_scaler.transform(raw_act)
-            )
-            alpha = self.blend_alpha
-            if alpha == 0.0:
-                test_vec = A_scaled[0]
-            elif alpha == 1.0:
-                test_vec = test_sample_scaled
-            else:
-                test_vec = np.hstack([
-                    np.sqrt(alpha) * test_sample_scaled,
-                    np.sqrt(1.0 - alpha) * A_scaled[0],
-                ])
-        else:
-            test_vec = test_sample_scaled
-
-        # Get prediction if not provided
-        if predicted_class is None:
-            prediction_model = model if model is not None else self._model
-            if prediction_model is None:
-                raise ValueError("Either predicted_class or model must be provided")
-            prediction_input = np.atleast_2d(test_sample)
-            if isinstance(self.retrieval, HiddenActivationRetrieval):
-                transform = self.retrieval.input_transform
-                if transform is not None:
-                    transform = getattr(transform, "transform", transform)
-                    prediction_input = transform(prediction_input)
-            predicted_class = _label_value(
-                prediction_model.predict(prediction_input)[0]
-            )
-        else:
-            predicted_class = _label_value(predicted_class)
+        test_vec = self._build_query_vector(test_sample, test_sample_scaled)
+        predicted_class = self._resolve_predicted_class(
+            test_sample, predicted_class, model
+        )
         true_class = _label_value(true_class)
-        
-        # Query pre-built k-NN index
+
         k_actual = k if k is not None else self.k
         k_actual = min(k_actual, self.n_samples)  # Handle case where k > n_samples
-        
-        if self._tree_retrieval is not None:
-            distances, indices = self._tree_neighbors(
-                test_sample, test_sample_scaled, k_actual
-            )
-        elif self._forest_retrieval is not None:
-            distances, indices = self._forest_neighbors(test_sample, k_actual)
-        elif self._class_activation_extractors is not None:
-            distances, indices = self._class_activation_neighbors(
-                test_sample, test_sample_scaled, predicted_class, k_actual
-            )
-        else:
-            distances, indices = self.nn_index.kneighbors(
-                [test_vec],
-                n_neighbors=k_actual
-            )
-            distances = distances[0]
-            indices = indices[0]
-        
-        # Create Neighbor objects
-        neighbors = []
-        for idx, dist in zip(indices, distances):
-            neighbor_metadata = {}
-            if return_provenance and self.metadata:
-                for key, values in self.metadata.items():
-                    neighbor_metadata[key] = values[idx]
-            
-            neighbor = Neighbor(
-                index=int(idx),
-                distance=float(dist),
-                label=_label_value(self.y_train[idx]),
-                features=self.X_train_original[idx].copy(),
-                metadata=neighbor_metadata if neighbor_metadata else None
-            )
-            neighbors.append(neighbor)
-        
+
+        distances, indices = self._retrieve_neighbors(
+            test_sample, test_sample_scaled, test_vec, predicted_class, k_actual
+        )
+        neighbors = self._build_neighbors(indices, distances, return_provenance)
+
         # Compute correspondence with optional class weighting
         neighbor_tuples = [(n.index, n.distance, n.label) for n in neighbors]
         correspondence, interpretation = compute_correspondence(
             neighbor_tuples,
             predicted_class,
             distance_weighted=distance_weighted,
-            class_weights=self.class_weights
+            class_weights=self.class_weights,
         )
-        
+
         # Create explanation
         explanation = Explanation(
             test_sample=test_sample.copy(),
@@ -462,10 +672,62 @@ class CaseExplainer:
             correspondence=correspondence,
             correspondence_interpretation=interpretation,
             feature_names=self.feature_names,
-            class_names=self.class_names
+            class_names=self.class_names,
         )
-        
+
         return explanation
+
+    def _build_query_vector(self, test_sample, test_sample_scaled):
+        """Build the k-NN query vector, mirroring the training index space."""
+        return self._strategy.query_vector(self, test_sample, test_sample_scaled)
+
+    def _resolve_predicted_class(self, test_sample, predicted_class, model):
+        """Return the predicted class, querying the model when not supplied."""
+        if predicted_class is not None:
+            return _label_value(predicted_class)
+        prediction_model = model if model is not None else self._model
+        if prediction_model is None:
+            raise ValueError("Either predicted_class or model must be provided")
+        prediction_input = np.atleast_2d(test_sample)
+        if isinstance(self.retrieval, HiddenActivationRetrieval):
+            transform = self.retrieval.input_transform
+            if transform is not None:
+                transform = getattr(transform, "transform", transform)
+                prediction_input = transform(prediction_input)
+        return _label_value(prediction_model.predict(prediction_input)[0])
+
+    def _retrieve_neighbors(
+        self, test_sample, test_sample_scaled, test_vec, predicted_class, k_actual
+    ):
+        """Query the active retrieval mode for ``(distances, indices)``."""
+        return self._strategy.neighbors(
+            self,
+            test_sample,
+            test_sample_scaled,
+            test_vec,
+            predicted_class,
+            k_actual,
+        )
+
+    def _build_neighbors(self, indices, distances, return_provenance):
+        """Assemble Neighbor objects, attaching provenance metadata when present."""
+        neighbors = []
+        for idx, dist in zip(indices, distances):
+            neighbor_metadata = {}
+            if return_provenance and self.metadata:
+                for key, values in self.metadata.items():
+                    neighbor_metadata[key] = values[idx]
+
+            neighbors.append(
+                Neighbor(
+                    index=int(idx),
+                    distance=float(dist),
+                    label=_label_value(self.y_train[idx]),
+                    features=self.X_train_original[idx].copy(),
+                    metadata=neighbor_metadata if neighbor_metadata else None,
+                )
+            )
+        return neighbors
 
     def _initialize_class_activation_retrieval(self, retrieval, X_train, model):
         from .activations import SklearnMLPActivationExtractor
@@ -496,9 +758,7 @@ class CaseExplainer:
                     output_class=output_class,
                 )
                 activations = extractor.fit_transform(model, X_train)
-                index_data = self._blend_index_data(
-                    activations, retrieval.blend_alpha
-                )
+                index_data = self._blend_index_data(activations, retrieval.blend_alpha)
                 index = NearestNeighbors(
                     n_neighbors=min(self.k, self.n_samples),
                     metric=self.metric,
@@ -510,17 +770,18 @@ class CaseExplainer:
                     shared_binary_index = index
             self._class_activation_extractors[class_label] = extractor
             self._class_nn_indexes[class_label] = index
-        self._pending_class_retrieval = None
 
     def _blend_index_data(self, activations, alpha):
         if alpha == 0.0:
             return activations
         if alpha == 1.0:
             return self.X_train_scaled
-        return np.hstack([
-            np.sqrt(alpha) * self.X_train_scaled,
-            np.sqrt(1.0 - alpha) * activations,
-        ])
+        return np.hstack(
+            [
+                np.sqrt(alpha) * self.X_train_scaled,
+                np.sqrt(1.0 - alpha) * activations,
+            ]
+        )
 
     def _class_activation_neighbors(
         self, test_sample, test_sample_scaled, predicted_class, k_actual
@@ -537,10 +798,12 @@ class CaseExplainer:
         elif alpha == 1.0:
             test_vec = test_sample_scaled
         else:
-            test_vec = np.hstack([
-                np.sqrt(alpha) * test_sample_scaled,
-                np.sqrt(1.0 - alpha) * activation,
-            ])
+            test_vec = np.hstack(
+                [
+                    np.sqrt(alpha) * test_sample_scaled,
+                    np.sqrt(1.0 - alpha) * activation,
+                ]
+            )
         distances, indices = self._class_nn_indexes[predicted_class].kneighbors(
             [test_vec], n_neighbors=k_actual
         )
@@ -563,7 +826,7 @@ class CaseExplainer:
             raise ValueError("within_leaf must be 'feature_distance'")
 
     def _tree_neighbors(self, test_sample, test_sample_scaled, k_actual):
-        query_leaf = int(self._tree_retrieval.model.apply([test_sample])[0])
+        query_leaf = int(self.retrieval.model.apply([test_sample])[0])
         same_leaf = np.flatnonzero(self._training_leaf_ids == query_leaf)
         feature_distances = np.linalg.norm(
             self.X_train_scaled - test_sample_scaled, axis=1
@@ -571,10 +834,10 @@ class CaseExplainer:
         same_leaf = same_leaf[np.argsort(feature_distances[same_leaf])]
         indices = same_leaf[:k_actual]
 
-        if len(indices) < k_actual and self._tree_retrieval.overflow == "nearest":
+        if len(indices) < k_actual and self.retrieval.overflow == "nearest":
             outside = np.flatnonzero(self._training_leaf_ids != query_leaf)
             outside = outside[np.argsort(feature_distances[outside])]
-            indices = np.concatenate([indices, outside[:k_actual - len(indices)]])
+            indices = np.concatenate([indices, outside[: k_actual - len(indices)]])
 
         return feature_distances[indices], indices
 
@@ -591,13 +854,11 @@ class CaseExplainer:
             raise ValueError("ForestProximityRetrieval model must be fitted")
 
     def _forest_neighbors(self, test_sample, k_actual):
-        query_leaves = self._forest_retrieval.model.apply([test_sample])[0]
-        distances = 1.0 - np.mean(
-            self._training_leaf_ids == query_leaves, axis=1
-        )
+        query_leaves = self.retrieval.model.apply([test_sample])[0]
+        distances = 1.0 - np.mean(self._training_leaf_ids == query_leaves, axis=1)
         indices = np.argsort(distances, kind="stable")[:k_actual]
         return distances[indices], indices
-    
+
     def explain_batch(
         self,
         X_test: Union[np.ndarray, pd.DataFrame],
@@ -606,11 +867,11 @@ class CaseExplainer:
         model: Optional[Any] = None,
         k: Optional[int] = None,
         return_provenance: bool = True,
-        distance_weighted: bool = True
+        distance_weighted: bool = True,
     ) -> List[Explanation]:
         """
         Explain multiple predictions efficiently.
-        
+
         Args:
             X_test: Test samples (n_samples, n_features)
             y_test: True labels (optional)
@@ -619,7 +880,7 @@ class CaseExplainer:
             k: Number of neighbors (optional, uses default from init)
             return_provenance: Include metadata
             distance_weighted: Use distance weighting
-            
+
         Returns:
             List of Explanation objects
         """
@@ -628,25 +889,21 @@ class CaseExplainer:
             X_test = X_test.values
         else:
             X_test = np.asarray(X_test)
-        
+
         if y_test is not None:
             if isinstance(y_test, (pd.Series, list)):
                 y_test = np.asarray(y_test)
-        
+
         if predictions is not None:
             if isinstance(predictions, list):
                 predictions = np.asarray(predictions)
-        
+
         # Generate explanations
         explanations = []
         for i, sample in enumerate(X_test):
-            true_class = (
-                None if y_test is None else _label_value(y_test[i])
-            )
-            pred_class = (
-                None if predictions is None else _label_value(predictions[i])
-            )
-            
+            true_class = None if y_test is None else _label_value(y_test[i])
+            pred_class = None if predictions is None else _label_value(predictions[i])
+
             explanation = self.explain_instance(
                 test_sample=sample,
                 test_index=i,
@@ -655,16 +912,16 @@ class CaseExplainer:
                 model=model,
                 k=k,
                 return_provenance=return_provenance,
-                distance_weighted=distance_weighted
+                distance_weighted=distance_weighted,
             )
             explanations.append(explanation)
-        
+
         return explanations
-    
+
     def get_training_info(self) -> Dict[str, Any]:
         """Get information about the training data."""
         unique_classes, class_counts = np.unique(self.y_train, return_counts=True)
-        
+
         return {
             "n_samples": self.n_samples,
             "n_features": self.n_features,
@@ -677,21 +934,13 @@ class CaseExplainer:
             "metric": self.metric,
             "scaled": self.scale_data,
             "has_metadata": bool(self.metadata),
-            "default_k": self.k
+            "default_k": self.k,
         }
-    
+
     def __repr__(self) -> str:
-        has_activation_retrieval = (
-            self.activation_extractor is not None
-            or self._class_activation_extractors is not None
+        return (
+            f"CaseExplainer(n_samples={self.n_samples}, "
+            f"n_features={self.n_features}, "
+            f"k={self.k}, mode='{self._strategy.mode_label(self)}', "
+            f"algorithm='{self.algorithm}')"
         )
-        mode = (
-            "tree_leaf" if self._tree_retrieval is not None
-            else "forest_proximity" if self._forest_retrieval is not None
-            else "activations" if (has_activation_retrieval and self.blend_alpha == 0.0)
-            else f"hybrid(alpha={self.blend_alpha:.2f})" if has_activation_retrieval
-            else "features"
-        )
-        return (f"CaseExplainer(n_samples={self.n_samples}, "
-                f"n_features={self.n_features}, "
-                f"k={self.k}, mode='{mode}', algorithm='{self.algorithm}')")
