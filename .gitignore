@@ -150,3 +150,7 @@ TODO.md
 # OS
 .DS_Store
 Thumbs.db
+
+# Local working notes (not for commit)
+.copilot-tracking/
+case-explainer-activations-improvement-note.md
