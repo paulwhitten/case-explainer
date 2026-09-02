@@ -920,6 +920,8 @@ class CaseExplainer:
 
     def get_training_info(self) -> Dict[str, Any]:
         """Get information about the training data."""
+        unique_classes: np.ndarray
+        class_counts: np.ndarray
         unique_classes, class_counts = np.unique(self.y_train, return_counts=True)
 
         return {

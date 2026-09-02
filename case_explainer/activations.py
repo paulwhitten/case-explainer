@@ -635,15 +635,15 @@ class DecisionTreeActivationExtractor(ActivationExtractor):
         self._is_forest = leaf_ids.ndim == 2
 
         if self._is_forest:
-            max_per_tree = np.array(
+            max_per_tree: np.ndarray = np.array(
                 [estimator.tree_.node_count - 1 for estimator in model.estimators_]
             )
             total_dims = int((max_per_tree + 1).sum())
             if total_dims <= self.max_one_hot_dims:
                 self._encoding = "one_hot"
-                self._leaf_offsets = np.concatenate(
-                    [[0], np.cumsum(max_per_tree + 1)[:-1]]
-                ).astype(int)
+                cumulative: np.ndarray = np.cumsum(max_per_tree + 1)
+                offsets: np.ndarray = np.concatenate([[0], cumulative[:-1]])
+                self._leaf_offsets = offsets.astype(int)
                 self._total_dims = total_dims
             else:
                 self._encoding = "raw"
