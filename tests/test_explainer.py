@@ -10,17 +10,20 @@ from case_explainer.explanation import Explanation
 
 # --- Fixtures ---
 
+
 @pytest.fixture
 def simple_data():
     """Simple 2-class 2-feature dataset."""
-    X = np.array([
-        [0.0, 0.0],
-        [0.1, 0.1],
-        [0.2, 0.0],
-        [10.0, 10.0],
-        [10.1, 10.1],
-        [10.2, 10.0],
-    ])
+    X = np.array(
+        [
+            [0.0, 0.0],
+            [0.1, 0.1],
+            [0.2, 0.0],
+            [10.0, 10.0],
+            [10.1, 10.1],
+            [10.2, 10.0],
+        ]
+    )
     y = np.array([0, 0, 0, 1, 1, 1])
     return X, y
 
@@ -48,6 +51,7 @@ def mock_model():
 
 
 # --- __init__ ---
+
 
 class TestInit:
     def test_basic_init(self, simple_data):
@@ -130,11 +134,12 @@ class TestInit:
 
     def test_algorithm_stored(self, simple_data):
         X, y = simple_data
-        ex = CaseExplainer(X, y, k=2, algorithm='brute')
-        assert ex.algorithm == 'brute'
+        ex = CaseExplainer(X, y, k=2, algorithm="brute")
+        assert ex.algorithm == "brute"
 
 
 # --- explain_instance ---
+
 
 class TestExplainInstance:
     def test_with_model(self, explainer, mock_model):
@@ -218,9 +223,7 @@ class TestExplainInstance:
         assert has_meta
 
     def test_scaled_explainer(self, explainer_scaled):
-        exp = explainer_scaled.explain_instance(
-            np.array([0.0, 0.0]), predicted_class=0
-        )
+        exp = explainer_scaled.explain_instance(np.array([0.0, 0.0]), predicted_class=0)
         assert isinstance(exp, Explanation)
 
     def test_distance_weighted_off(self, explainer):
@@ -231,6 +234,7 @@ class TestExplainInstance:
 
 
 # --- explain_batch ---
+
 
 class TestExplainBatch:
     def test_batch_length(self, explainer):
@@ -247,6 +251,7 @@ class TestExplainBatch:
     def test_batch_with_real_classifier(self, simple_data):
         """explain_batch with a real trained model (not mocked)."""
         from sklearn.tree import DecisionTreeClassifier
+
         X, y = simple_data
         clf = DecisionTreeClassifier(random_state=42)
         clf.fit(X, y)
@@ -278,9 +283,7 @@ class TestExplainBatch:
 
     def test_batch_series_labels(self, explainer):
         X_test = np.array([[0.0, 0.0]])
-        exps = explainer.explain_batch(
-            X_test, y_test=pd.Series([0]), predictions=[0]
-        )
+        exps = explainer.explain_batch(X_test, y_test=pd.Series([0]), predictions=[0])
         assert exps[0].true_class == 0
 
     def test_batch_indices_sequential(self, explainer):
@@ -293,12 +296,14 @@ class TestExplainBatch:
 
 # --- Integration with real classifier ---
 
+
 class TestIntegrationRealClassifier:
     """End-to-end tests using actual sklearn classifiers (no mocks)."""
 
     def test_explain_with_real_model(self, simple_data):
         """explain_instance with a real trained classifier."""
         from sklearn.tree import DecisionTreeClassifier
+
         X, y = simple_data
         clf = DecisionTreeClassifier(random_state=42)
         clf.fit(X, y)
@@ -311,6 +316,7 @@ class TestIntegrationRealClassifier:
     def test_batch_with_real_model(self, simple_data):
         """explain_batch with a real trained classifier."""
         from sklearn.tree import DecisionTreeClassifier
+
         X, y = simple_data
         clf = DecisionTreeClassifier(random_state=42)
         clf.fit(X, y)
@@ -327,27 +333,25 @@ class TestIntegrationRealClassifier:
         """Full pipeline with Iris dataset and RandomForest."""
         X_train, X_test, y_train, y_test = iris_data
         ex = CaseExplainer(
-            X_train, y_train, k=5,
-            feature_names=['sepal_len', 'sepal_wid', 'petal_len', 'petal_wid'],
-            class_names={0: 'setosa', 1: 'versicolor', 2: 'virginica'},
+            X_train,
+            y_train,
+            k=5,
+            feature_names=["sepal_len", "sepal_wid", "petal_len", "petal_wid"],
+            class_names={0: "setosa", 1: "versicolor", 2: "virginica"},
         )
         # Single explanation
-        exp = ex.explain_instance(
-            X_test[0], model=iris_clf, true_class=int(y_test[0])
-        )
+        exp = ex.explain_instance(X_test[0], model=iris_clf, true_class=int(y_test[0]))
         assert isinstance(exp, Explanation)
         assert 0.0 <= exp.correspondence <= 1.0
-        assert exp.correspondence_interpretation in ('high', 'medium', 'low')
+        assert exp.correspondence_interpretation in ("high", "medium", "low")
         assert len(exp.neighbors) == 5
-        assert exp.feature_names == ['sepal_len', 'sepal_wid', 'petal_len', 'petal_wid']
+        assert exp.feature_names == ["sepal_len", "sepal_wid", "petal_len", "petal_wid"]
 
     def test_iris_batch(self, iris_data, iris_clf):
         """Batch explanation on Iris with accuracy check."""
         X_train, X_test, y_train, y_test = iris_data
         ex = CaseExplainer(X_train, y_train, k=5)
-        exps = ex.explain_batch(
-            X_test[:10], model=iris_clf, y_test=y_test[:10]
-        )
+        exps = ex.explain_batch(X_test[:10], model=iris_clf, y_test=y_test[:10])
         assert len(exps) == 10
         # RandomForest on Iris should get most right
         correct = sum(1 for e in exps if e.is_correct())
@@ -362,28 +366,40 @@ class TestIntegrationRealClassifier:
         """Verify summary and to_dict work with real Iris data."""
         X_train, X_test, y_train, y_test = iris_data
         ex = CaseExplainer(
-            X_train, y_train, k=3,
-            class_names={0: 'setosa', 1: 'versicolor', 2: 'virginica'},
+            X_train,
+            y_train,
+            k=3,
+            class_names={0: "setosa", 1: "versicolor", 2: "virginica"},
         )
         exp = ex.explain_instance(X_test[0], model=iris_clf)
         summary = exp.summary()
-        assert 'CASE-BASED EXPLANATION' in summary
-        assert 'Correspondence' in summary
+        assert "CASE-BASED EXPLANATION" in summary
+        assert "Correspondence" in summary
         d = exp.to_dict()
-        assert isinstance(d['correspondence'], float)
-        assert len(d['neighbors']) == 3
-        assert d['predicted_class_name'] in ('setosa', 'versicolor', 'virginica')
+        assert isinstance(d["correspondence"], float)
+        assert len(d["neighbors"]) == 3
+        assert d["predicted_class_name"] in ("setosa", "versicolor", "virginica")
 
 
 # --- get_training_info ---
+
 
 class TestGetTrainingInfo:
     def test_keys(self, explainer):
         info = explainer.get_training_info()
         expected = {
-            "n_samples", "n_features", "n_classes", "classes",
-            "class_counts", "feature_names", "class_names",
-            "algorithm", "metric", "scaled", "has_metadata", "default_k",
+            "n_samples",
+            "n_features",
+            "n_classes",
+            "classes",
+            "class_counts",
+            "feature_names",
+            "class_names",
+            "algorithm",
+            "metric",
+            "scaled",
+            "has_metadata",
+            "default_k",
         }
         assert expected == set(info.keys())
 
@@ -397,6 +413,7 @@ class TestGetTrainingInfo:
 
 
 # --- __repr__ ---
+
 
 class TestRepr:
     def test_repr(self, explainer):

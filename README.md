@@ -26,6 +26,7 @@ You get: *"This sample is classified as X because it resembles these 5 training 
 - **Metadata tracking**: Attach provenance data to training samples
 - **Sklearn-compatible API**: Familiar interface for ML practitioners
 - **Batch explanations**: Explain multiple predictions efficiently
+- **Model-informed similarity**: Retrieve cases from a neural network's learned representation or a decision tree's matching leaf
 
 ## Installation
 
@@ -76,11 +77,44 @@ print(explanation.summary())
 
 ## Core Concepts
 
+### Traditional Feature-Space Precedent
+
+By default, Case-Explainer retrieves training cases that are nearest to the
+query in the original feature space. Numeric features are standardized by
+default so a feature with a large numerical range does not dominate Euclidean
+distance. Set `scale_data=False` only when the inputs are already on a
+meaningful common scale or when custom scaling has been applied.
+
+```python
+feature_explainer = CaseExplainer(
+    X_train,
+    y_train,
+    feature_names=feature_names,
+    scale_data=True,
+)
+
+explanation = feature_explainer.explain_instance(
+    X_test[0],
+    model=classifier,
+)
+```
+
+This model-agnostic explanation answers: "Which observed training samples have
+the most similar measured attributes?" It is useful when input features have a
+domain meaning that a reviewer can inspect directly. Feature-space proximity
+does not imply that the model used those features in the same way, and it can
+be misleading when irrelevant, redundant, or high-dimensional inputs dominate
+the distance.
+
+The returned neighbors retain their original feature values, labels, indexes,
+and optional metadata. Correspondence then measures how strongly their labels
+agree with the model prediction; it does not measure feature importance.
+
 ### Correspondence Metric
 
 Quantifies agreement between prediction and retrieved neighbors using inverse-cubed distance weighting:
 
-```
+```text
 w(c) = sum[ 1 / (distance + 1)^3 ] for neighbors with class c
 Correspondence = w(predicted_class) / sum( w(all_classes) )
 ```
@@ -88,6 +122,7 @@ Correspondence = w(predicted_class) / sum( w(all_classes) )
 The `+1` offset in the denominator prevents division by zero when a test sample is identical to a training sample (distance = 0). In that case the weight is simply `1 / 1 = 1`.
 
 **Example Interpretation Thresholds** (domain-dependent, not universal standards):
+
 - **High (≥85%)**: Strong agreement with training precedent
 - **Medium (70-85%)**: Moderate agreement
 - **Low (<70%)**: Weak agreement, prediction may be uncertain
@@ -99,6 +134,91 @@ The `+1` offset in the denominator prevents division by zero when a test sample 
 - **`kd_tree`**: Fast for low-dimensional data (<20 features)
 - **`ball_tree`**: Better for high-dimensional data
 - **`brute`**: Exact search for small datasets (<10k samples)
+
+### Activation-Based Similarity (Neural Networks)
+
+For sklearn `MLPClassifier` models, you can retrieve neighbors by hidden-layer
+activations instead of raw input features. The resulting cases show consequences
+of the model's learned representation. They do not expose the model's complete
+internal reasoning.
+
+```python
+from sklearn.neural_network import MLPClassifier
+from case_explainer import CaseExplainer, HiddenActivations, Blend
+
+mlp = MLPClassifier(hidden_layer_sizes=(64, 32, 16), random_state=42)
+mlp.fit(X_train, y_train)
+
+# Last hidden layer, based on Caruana et al. (1999)
+explainer = CaseExplainer(
+    X_train, y_train,
+    similarity=HiddenActivations(model=mlp),
+)
+
+# All hidden layers with position weighting, a library extension
+explainer_deep = CaseExplainer(
+    X_train, y_train,
+    similarity=HiddenActivations(model=mlp, layer="all_hidden"),
+)
+
+# Hybrid: blend features (30%) and activations (70%)
+explainer_hybrid = CaseExplainer(
+    X_train, y_train,
+    similarity=Blend(HiddenActivations(model=mlp), features=0.3),
+)
+
+# Multiclass: weight units using the predicted class's output connections
+explainer_class_weighted = CaseExplainer(
+    X_train, y_train,
+    similarity=HiddenActivations(
+        model=mlp,
+        output_weighting="predicted_class",
+    ),
+)
+
+# The construction model is reused for prediction.
+explanation = explainer.explain_instance(X_test[0])
+```
+
+If the MLP was trained on transformed inputs, pass its fitted transformer as
+`input_transform`. The explainer applies it both when extracting activations
+and when asking the model for a prediction.
+
+The legacy `activation_extractor`, `activation_layer`, `use_output_weights`,
+and `blend_alpha` constructor path, along with the `retrieval=` parameter,
+remains supported but emits `DeprecationWarning`. Prefer `similarity=` with the
+strategy classes (`HiddenActivations`, `CustomActivations`, `TreeLeaf`,
+`ForestProximity`, `Blend`).
+
+For sklearn random forests, use shared-leaf proximity rather than treating
+leaf identifiers as numeric coordinates:
+
+```python
+from case_explainer import ForestProximity
+
+forest_explainer = CaseExplainer(
+    X_train, y_train,
+    similarity=ForestProximity(model=forest),
+)
+```
+
+See [notebooks/02_breast_cancer_tutorial.ipynb](notebooks/02_breast_cancer_tutorial.ipynb) for a full worked comparison.
+
+### Choosing a Retrieval Space
+
+| Retrieval space | Meaning of a similar case | Best suited to | Main limitation |
+| --- | --- | --- | --- |
+| Features (default) | Nearby observed input attributes | Model-agnostic review and domain-readable measurements | May not reflect the model's learned notion of similarity |
+| Hidden activations | Nearby learned neural-network representations | Inspecting precedents that the MLP represents similarly | Model-specific and less directly interpretable |
+| Feature/activation hybrid | Nearby under a weighted combination of both spaces | Balancing domain similarity with model representation | The blend weight is an analyst choice that requires validation |
+| Decision-tree leaf | Cases following the same tree path to a leaf | Exact precedent within a fitted decision tree | A leaf may contain fewer than `k` retained cases |
+| Random-forest proximity | Cases sharing leaves across many trees | Model-informed precedent for fitted random forests | Requires comparison with the retained case base at query time |
+
+All modes retrieve actual training cases. The retrieval space changes what
+"like samples" means; the explanation and correspondence interfaces remain the
+same. Use feature retrieval when observed attributes define the comparison you
+want to defend. Use model-informed retrieval when the model's internal
+partitioning or representation is the relevant basis for precedent.
 
 ## Examples
 
@@ -128,6 +248,7 @@ python benchmark.py --help       # See all options
 ```
 
 Results (single run on reference hardware):
+
 - **Speed**: 14-37 ms per explanation depending on dataset size
 - **Memory**: <1 MB to 131 MB (scales with data size and dimensionality)
 - **Correspondence**: 87-100% neighbor agreement across validated domains
@@ -152,6 +273,7 @@ python3 -m http.server 8000 --directory docs/_build/html
 ```
 
 The documentation includes:
+
 - Complete API reference for all classes and functions
 - Usage examples and code snippets
 - Theory and mathematical foundations
@@ -167,13 +289,14 @@ The documentation includes:
 - **Personal data:** User behavior, preferences, demographics
 
 **Before using in production with sensitive data:**
+
 1. Implement feature masking for sensitive columns
 2. Consider differential privacy mechanisms
 3. Apply anonymization to metadata
 4. Set up access control and audit logging
 5. Review legal/regulatory requirements (GDPR, HIPAA, etc.)
 
-**Privacy protection features are planned for Phase 2.** For now, use only with non-sensitive data or in controlled research environments.
+Privacy-preserving features are not yet available. Use only with non-sensitive data or in controlled research environments.
 
 Unlike LIME/SHAP which only show feature importance, case-explainer exposes training sample features. Evaluate whether this trade-off is acceptable for your use case.
 
@@ -185,13 +308,15 @@ Unlike LIME/SHAP which only show feature importance, case-explainer exposes trai
 
 ```python
 explainer = CaseExplainer(
-    X_train,                # Training features
-    y_train,                # Training labels
-    feature_names=None,     # Optional feature names
-    class_names=None,       # Optional class names {0: 'cat', 1: 'dog'}
-    algorithm='kd_tree',    # Indexing strategy
-    scale_data=True,        # Standardize features
-    metadata=None           # Optional provenance data
+    X_train,                    # Training features
+    y_train,                    # Training labels
+    feature_names=None,         # Optional feature names
+    class_names=None,           # Optional class names {0: 'cat', 1: 'dog'}
+    algorithm='kd_tree',        # Indexing strategy
+    scale_data=True,            # Standardize features
+    metadata=None,              # Optional provenance data
+    # Explicit strategy object for hidden activations, tree leaves, or forests
+    retrieval=None,
 )
 ```
 
@@ -234,21 +359,25 @@ explanation.plot()                  # Visualize (bar plot)
 ## Validated Domains
 
 **Hardware Trojan Detection** (56,959 samples, 5 features)
+
 - 99.3% average correspondence across indexing methods
 - High neighbor agreement on imbalanced security data
 - 25.7 ms/sample explanation time (single run, reference hardware)
 
 **Credit Card Fraud Detection** (284,807 samples, 30 features)
+
 - 100% average correspondence (complete agreement with retrieved neighbors)
 - Highly imbalanced dataset (268:1 normal:fraud ratio)
 - 36.4 ms/sample explanation time (single run, reference hardware)
 
 **Medical Diagnosis - Breast Cancer** (569 samples, 30 features)
+
 - 93.3% average correspondence
 - Correct predictions: 96.2% correspondence vs 47.3% for incorrect predictions
 - 25.9 ms/sample explanation time (single run, reference hardware)
 
 **Also Validated On:**
+
 - Iris (92.7%), Wine (91.8%), Digits (94.9%), MNIST (87.5%)
 - See `benchmark.py` for full results across 7 datasets
 
@@ -257,6 +386,7 @@ explanation.plot()                  # Visualize (bar plot)
 ## When to Use Case-Based Explainability
 
 **Case-Explainer is well-suited for scenarios where:**
+
 - Domain experts need to verify predictions against known training cases
 - Precedent-based reasoning is valued (medical diagnosis, legal decisions, security analysis)
 - Concrete examples are more intuitive than feature importance scores
@@ -264,6 +394,7 @@ explanation.plot()                  # Visualize (bar plot)
 - Fast explanation generation is needed for real-time or interactive systems
 
 **Alternative approaches (LIME, SHAP) may be preferable when:**
+
 - Feature contributions are more relevant than training precedents
 - Training data cannot be exposed due to privacy/security constraints
 - Model debugging requires understanding feature-level behavior
@@ -271,7 +402,7 @@ explanation.plot()                  # Visualize (bar plot)
 ### Comparison with LIME and SHAP
 
 | Aspect | Case-Explainer | LIME | SHAP |
-|--------|---------------|------|------|
+| -------- | --------------- | ------ | ------ |
 | Explanation type | Training precedents (similar cases) | Local surrogate model (feature importance) | Shapley values (feature importance) |
 | Output | k nearest neighbors + correspondence score | Per-feature importance for one prediction | Per-feature importance (local and global) |
 | Privacy risk | High -- exposes actual training samples | Low -- uses synthetic perturbations | Low -- no sample exposure |
@@ -283,64 +414,34 @@ explanation.plot()                  # Visualize (bar plot)
 
 ## Limitations
 
-**Privacy and Security**
+### Privacy and Security
+
 - Exposes actual training samples, which may contain sensitive information
 - Not suitable for sensitive data without additional privacy protection mechanisms
 - Privacy-preserving features are planned for future releases
 
-**Correspondence Metric**
+### Correspondence Metric Limitations
+
 - Measures neighbor agreement, not prediction correctness or quality
 - High correspondence can occur with incorrect predictions if training data contains systematic errors
 - Thresholds for "high/medium/low" must be validated per domain
 
-**Performance Benchmarks**
+### Performance Benchmark Limitations
+
 - Timing and memory results are from single runs on reference hardware
 - No statistical error bars or confidence intervals provided
 - Results may vary significantly on different hardware and with different parameters
 
-**Scalability**
+### Scalability Limitations
+
 - Memory usage scales linearly with training set size
 - Very large datasets (>1M samples) may require approximate nearest neighbor methods (not yet implemented)
 
-**Interpretability**
+### Interpretability Limitations
+
 - Assumes users can meaningfully interpret feature values of retrieved neighbors
 - Multi-feature patterns may be difficult to assess without domain expertise
 - High-dimensional data may require dimensionality reduction for effective interpretation
-
-## Development Status
-
-### Core Functionality MVP
-- [x] CaseExplainer class with sklearn-compatible API
-- [x] Correspondence metric with distance weighting
-- [x] Multiple indexing strategies (K-D tree, Ball tree, brute force)
-- [x] Explanation object with summary and visualization
-- [x] Metadata/provenance tracking
-- [x] Batch explanation support
-
-### Phase 1: Multi-Domain Validation
-- [x] Hardware trojan detection (validated in JETTA paper)
-- [x] Medical diagnosis (UCI Breast Cancer)
-- [x] Fraud detection (Credit Card Fraud)
-- [x] Benchmarking (time, memory, correspondence)
-
-### Phase 2: Documentation - IN PROGRESS
-- [x] API reference
-- [x] Tutorial notebooks (4 domains)
-- [x] Comparison guide (vs LIME/SHAP)
-- [x] Code coverage >90%
-
-### Phase 3: Testing & Quality
-- [x] Unit test suite (pytest, >90% coverage)
-- [x] Multi-Python version compatibility (3.8–3.12)
-- [x] Integration tests across validated domains
-- [ ] Privacy-preserving features (feature masking, differential privacy)
-- [ ] Approximate nearest neighbors (Annoy, FAISS) for large-scale data
-
-### Phase 4: Release & Distribution
-- [x] PyPI package (`pip install case-explainer`)
-- [x] GitHub Pages documentation (https://paulwhitten.github.io/case-explainer/)
-- [x] CI/CD pipeline (GitHub Actions: test matrix, publish to PyPI)
-- [ ] Zenodo DOI
 
 ## Citation
 
@@ -364,6 +465,7 @@ MIT License - see LICENSE file for details.
 Contributions welcome! Core functionality and release infrastructure are complete.
 
 **Priority areas:**
+
 - Additional distance metrics (Manhattan, Cosine)
 - Approximate nearest neighbors (Annoy, FAISS) for large-scale data
 - Radar and parallel coordinate visualizations
@@ -371,7 +473,7 @@ Contributions welcome! Core functionality and release infrastructure are complet
 
 ## Contact
 
-Questions? Issues? Open a GitHub issue or contact pcw@case.edu.
+Questions? Issues? Open a GitHub issue or contact <pcw@case.edu>.
 
 ## Acknowledgments
 

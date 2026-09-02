@@ -33,3 +33,121 @@ jobs:
       - name: Run tests
         run: |
           pytest tests/ --tb=short
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Check formatting (black)
+        run: black --check case_explainer tests benchmark.py
+
+      - name: Lint (ruff)
+        run: ruff check case_explainer tests benchmark.py
+
+      - name: Type check (mypy)
+        run: mypy case_explainer
+
+  notebook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Validate tutorial notebook
+        run: pytest tests/test_notebooks.py --tb=short
+
+  distribution:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: pip install build twine
+
+      - name: Build distributions
+        run: python -m build
+
+      - name: Validate metadata
+        run: twine check dist/*
+
+      - name: Validate distribution contents
+        run: |
+          python - <<'PY'
+          import glob
+          import tarfile
+          import zipfile
+
+          wheel = glob.glob("dist/case_explainer-*.whl")[0]
+          with zipfile.ZipFile(wheel) as archive:
+              names = archive.namelist()
+          assert "case_explainer/_compat.py" in names
+
+          source = glob.glob("dist/case_explainer-*.tar.gz")[0]
+          with tarfile.open(source) as archive:
+              names = archive.getnames()
+          assert any(name.endswith("/CHANGELOG.md") for name in names)
+          PY
+
+  performance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Run retrieval benchmark
+        run: |
+          python benchmark.py \
+            --retrieval-strategies \
+            --retrieval-matrix \
+            --retrieval-samples 300 \
+            --retrieval-features 20 40 \
+            --retrieval-classes 2 3 5 \
+            --batch-size 3 \
+            --retrieval-warmups 2 \
+            --retrieval-repetitions 5 \
+            --output retrieval_candidate.csv
+
+      - name: Check performance relationships
+        run: |
+          python benchmark.py \
+            --baseline benchmarks/retrieval_baseline.csv \
+            --check-regression retrieval_candidate.csv
+
+      - name: Upload benchmark candidate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retrieval-performance-${{ github.sha }}
+          path: retrieval_candidate.csv

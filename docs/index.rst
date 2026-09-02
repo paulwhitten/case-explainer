@@ -105,6 +105,7 @@ Contents
    :caption: Additional Information
 
    citation
+   migration
    license
 
 Indices and tables

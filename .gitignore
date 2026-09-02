@@ -74,6 +74,8 @@ docs/_static/
 docs/_templates/
 docs/.doctrees/
 *.doctree
+docs/procamiasymp00004-0249-2.pdf
+docs/procamiasymp00004-0249-2.txt
 
 # PyBuilder
 target/
@@ -131,6 +133,7 @@ dmypy.json
 # IDEs
 .vscode/
 .idea/
+TODO.md
 *.swp
 *.swo
 *~
@@ -138,6 +141,7 @@ dmypy.json
 # Data files (except assets folder - those are tracked with Git LFS)
 *.csv
 !assets/**/*.csv
+!benchmarks/*.csv
 *.pkl
 *.pickle
 *.h5
@@ -146,3 +150,7 @@ dmypy.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Local working notes (not for commit)
+.copilot-tracking/
+case-explainer-activations-improvement-note.md

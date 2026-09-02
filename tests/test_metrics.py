@@ -11,6 +11,7 @@ from case_explainer.metrics import (
 
 # --- euclidean_distance ---
 
+
 class TestEuclideanDistance:
     def test_identical_points(self):
         p = np.array([1.0, 2.0, 3.0])
@@ -33,6 +34,7 @@ class TestEuclideanDistance:
 
 
 # --- compute_correspondence ---
+
 
 class TestComputeCorrespondence:
     def test_empty_neighbors(self):
@@ -57,14 +59,18 @@ class TestComputeCorrespondence:
     def test_mixed_classes_weighted(self):
         """Mix of classes with distance weighting."""
         neighbors = [(0, 0.0, 1), (1, 0.0, 0), (2, 0.0, 1)]
-        corr, _ = compute_correspondence(neighbors, predicted_class=1, distance_weighted=True)
+        corr, _ = compute_correspondence(
+            neighbors, predicted_class=1, distance_weighted=True
+        )
         # equal distances -> 2/3 match predicted
         assert corr == pytest.approx(2.0 / 3.0, abs=1e-6)
 
     def test_unweighted_simple_voting(self):
         """Unweighted: simple count-based correspondence."""
         neighbors = [(0, 10.0, 1), (1, 0.01, 0), (2, 10.0, 1)]
-        corr, _ = compute_correspondence(neighbors, predicted_class=1, distance_weighted=False)
+        corr, _ = compute_correspondence(
+            neighbors, predicted_class=1, distance_weighted=False
+        )
         # 2 out of 3 match, regardless of distance
         assert corr == pytest.approx(2.0 / 3.0)
 
@@ -72,8 +78,12 @@ class TestComputeCorrespondence:
         """Closer neighbor of predicted class should boost correspondence."""
         # Neighbor of class 1 is very close, class 0 is far
         neighbors = [(0, 0.0, 1), (1, 100.0, 0)]
-        corr_weighted, _ = compute_correspondence(neighbors, predicted_class=1, distance_weighted=True)
-        corr_unweighted, _ = compute_correspondence(neighbors, predicted_class=1, distance_weighted=False)
+        corr_weighted, _ = compute_correspondence(
+            neighbors, predicted_class=1, distance_weighted=True
+        )
+        corr_unweighted, _ = compute_correspondence(
+            neighbors, predicted_class=1, distance_weighted=False
+        )
         # Weighted should be higher than 50% since class 1 is closer
         assert corr_weighted > corr_unweighted
 
@@ -92,8 +102,10 @@ class TestComputeCorrespondence:
         """Class weights with unweighted distance."""
         neighbors = [(0, 0.5, 0), (1, 0.5, 1)]
         corr, _ = compute_correspondence(
-            neighbors, predicted_class=1, distance_weighted=False,
-            class_weights={0: 1.0, 1: 3.0}
+            neighbors,
+            predicted_class=1,
+            distance_weighted=False,
+            class_weights={0: 1.0, 1: 3.0},
         )
         # class 1 weight=3, class 0 weight=1 -> 3/(3+1) = 0.75
         assert corr == pytest.approx(0.75)
@@ -128,8 +140,8 @@ class TestCorrespondenceNumericalAccuracy:
         neighbors = [(0, 0.5, 1), (1, 2.0, 0)]
         # w(class 1) = 1 / (0.5 + 1)^3 = 1 / 1.5^3 = 1 / 3.375
         # w(class 0) = 1 / (2.0 + 1)^3 = 1 / 3.0^3 = 1 / 27.0
-        w1 = 1.0 / (1.5 ** 3)  # 0.296296...
-        w0 = 1.0 / (3.0 ** 3)  # 0.037037...
+        w1 = 1.0 / (1.5**3)  # 0.296296...
+        w0 = 1.0 / (3.0**3)  # 0.037037...
         expected = w1 / (w1 + w0)  # 0.888888...
         corr, interp = compute_correspondence(neighbors, predicted_class=1)
         assert corr == pytest.approx(expected, abs=1e-10)
@@ -154,8 +166,7 @@ class TestCorrespondenceNumericalAccuracy:
         w0_total = 1.0
         expected = w1_total / (w1_total + w0_total)  # 2.25 / 3.25
         corr, _ = compute_correspondence(
-            neighbors, predicted_class=1,
-            class_weights={0: 1.0, 1: 2.0}
+            neighbors, predicted_class=1, class_weights={0: 1.0, 1: 2.0}
         )
         assert corr == pytest.approx(expected, abs=1e-10)
 
@@ -166,13 +177,16 @@ class TestCorrespondenceNumericalAccuracy:
         # With weights {0: 1.0, 1: 4.0}: class 1 = 4.0+4.0=8.0, class 0 = 1.0
         expected = 8.0 / 9.0
         corr, _ = compute_correspondence(
-            neighbors, predicted_class=1, distance_weighted=False,
-            class_weights={0: 1.0, 1: 4.0}
+            neighbors,
+            predicted_class=1,
+            distance_weighted=False,
+            class_weights={0: 1.0, 1: 4.0},
         )
         assert corr == pytest.approx(expected, abs=1e-10)
 
 
 # --- compute_all_distances ---
+
 
 class TestComputeAllDistances:
     def test_distances_shape(self):

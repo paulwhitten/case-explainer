@@ -1,7 +1,11 @@
 # Include essential top-level files
 include README.md
 include LICENSE
+include CHANGELOG.md
 include pyproject.toml
+
+# Include the PEP 561 typing marker
+include case_explainer/py.typed
 
 # Include notebooks
 recursive-include notebooks *.ipynb *.md

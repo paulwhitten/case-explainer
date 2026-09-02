@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "case-explainer"
-version = "0.1.1"
+version = "0.2.0"
 description = "General-purpose case-based explainability for machine learning"
 readme = "README.md"
 license = { text = "MIT" }
@@ -19,7 +19,7 @@ keywords = [
     "nearest-neighbors",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -43,9 +43,9 @@ dependencies = [
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=3.0.0",
-    "black>=22.0.0",
-    "flake8>=4.0.0",
-    "mypy>=0.950",
+    "black==24.8.0",
+    "ruff==0.16.5",
+    "mypy==1.11.2",
     "build>=0.10.0",
     "twine>=4.0.0",
 ]
@@ -59,3 +59,25 @@ Repository = "https://github.com/paulwhitten/case-explainer"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["case_explainer*"]
+
+[tool.setuptools.package-data]
+case_explainer = ["py.typed"]
+
+[tool.black]
+line-length = 88
+target-version = ["py38"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+
+[tool.ruff.lint]
+# Correctness (pyflakes/pycodestyle) rules; black owns line length (E501).
+select = ["E", "F", "W"]
+ignore = ["E501"]
+
+[tool.mypy]
+# No pinned python_version: mypy uses the running interpreter, avoiding a
+# conflict where newer numpy stubs use 3.12-only syntax.
+ignore_missing_imports = true
+files = ["case_explainer"]
