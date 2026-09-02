@@ -144,7 +144,7 @@ internal reasoning.
 
 ```python
 from sklearn.neural_network import MLPClassifier
-from case_explainer import CaseExplainer, HiddenActivationRetrieval
+from case_explainer import CaseExplainer, HiddenActivations, Blend
 
 mlp = MLPClassifier(hidden_layer_sizes=(64, 32, 16), random_state=42)
 mlp.fit(X_train, y_train)
@@ -152,25 +152,25 @@ mlp.fit(X_train, y_train)
 # Last hidden layer, based on Caruana et al. (1999)
 explainer = CaseExplainer(
     X_train, y_train,
-    retrieval=HiddenActivationRetrieval(model=mlp),
+    similarity=HiddenActivations(model=mlp),
 )
 
 # All hidden layers with position weighting, a library extension
 explainer_deep = CaseExplainer(
     X_train, y_train,
-    retrieval=HiddenActivationRetrieval(model=mlp, layer="all_hidden"),
+    similarity=HiddenActivations(model=mlp, layer="all_hidden"),
 )
 
 # Hybrid: blend features (30%) and activations (70%)
 explainer_hybrid = CaseExplainer(
     X_train, y_train,
-    retrieval=HiddenActivationRetrieval(model=mlp, blend_alpha=0.3),
+    similarity=Blend(HiddenActivations(model=mlp), features=0.3),
 )
 
 # Multiclass: weight units using the predicted class's output connections
 explainer_class_weighted = CaseExplainer(
     X_train, y_train,
-    retrieval=HiddenActivationRetrieval(
+    similarity=HiddenActivations(
         model=mlp,
         output_weighting="predicted_class",
     ),
@@ -185,18 +185,20 @@ If the MLP was trained on transformed inputs, pass its fitted transformer as
 and when asking the model for a prediction.
 
 The legacy `activation_extractor`, `activation_layer`, `use_output_weights`,
-and `blend_alpha` constructor path remains supported through version 0.2 and
-emits `DeprecationWarning`. It will be removed no earlier than version 0.3.
+and `blend_alpha` constructor path, along with the `retrieval=` parameter,
+remains supported but emits `DeprecationWarning`. Prefer `similarity=` with the
+strategy classes (`HiddenActivations`, `CustomActivations`, `TreeLeaf`,
+`ForestProximity`, `Blend`).
 
 For sklearn random forests, use shared-leaf proximity rather than treating
 leaf identifiers as numeric coordinates:
 
 ```python
-from case_explainer import ForestProximityRetrieval
+from case_explainer import ForestProximity
 
 forest_explainer = CaseExplainer(
     X_train, y_train,
-    retrieval=ForestProximityRetrieval(model=forest),
+    similarity=ForestProximity(model=forest),
 )
 ```
 

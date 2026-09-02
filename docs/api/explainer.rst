@@ -23,8 +23,29 @@ Explaining Predictions
 
 .. automethod:: CaseExplainer.explain_batch
 
-Retrieval Configurations
-^^^^^^^^^^^^^^^^^^^^^^^^
+Similarity Strategies
+^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: Features
+    :members:
+
+.. autoclass:: HiddenActivations
+    :members:
+
+.. autoclass:: CustomActivations
+    :members:
+
+.. autoclass:: TreeLeaf
+    :members:
+
+.. autoclass:: ForestProximity
+    :members:
+
+.. autoclass:: Blend
+    :members:
+
+Deprecated Retrieval Configurations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: HiddenActivationRetrieval
     :members:
@@ -208,7 +229,7 @@ Quick Start
 .. code-block:: python
 
    from sklearn.neural_network import MLPClassifier
-    from case_explainer import CaseExplainer, HiddenActivationRetrieval
+   from case_explainer import CaseExplainer, HiddenActivations
 
    mlp = MLPClassifier(hidden_layer_sizes=(64, 32, 16), random_state=42)
    mlp.fit(X_train, y_train)
@@ -216,17 +237,16 @@ Quick Start
    # Pure activation-based similarity, using the last hidden layer
    explainer = CaseExplainer(
        X_train, y_train,
-       retrieval=HiddenActivationRetrieval(
+       similarity=HiddenActivations(
            model=mlp,
            layer="last_hidden",
-           use_output_weights=True,
        ),
    )
 
    # All-layer aggregation is a library extension.
    explainer_deep = CaseExplainer(
        X_train, y_train,
-       retrieval=HiddenActivationRetrieval(model=mlp, layer="all_hidden"),
+       similarity=HiddenActivations(model=mlp, layer="all_hidden"),
    )
 
    explanation = explainer.explain_instance(X_test[0])
@@ -247,22 +267,21 @@ use the same connection magnitudes for both labels.
 
 .. code-block:: python
 
-    retrieval = HiddenActivationRetrieval(
+    similarity = HiddenActivations(
          model=mlp,
          output_weighting="predicted_class",
     )
-    explainer = CaseExplainer(X_train, y_train, retrieval=retrieval)
+    explainer = CaseExplainer(X_train, y_train, similarity=similarity)
 
 Set ``output_weighting="none"`` to use standardized activations without output
-connection weighting. ``use_output_weights=False`` remains a compatibility
-alias for this mode.
+connection weighting.
 
 Layer modes
 ^^^^^^^^^^^
 
 ``'last_hidden'``
     Uses the last hidden layer, based on Caruana (1999).
-    ``use_output_weights=True`` applies Section 5 scaling.
+    ``output_weighting="mean_abs"`` applies Section 5 scaling.
 
 ``'all_hidden'``
     Concatenates independently standardized hidden layers and scales layer
@@ -276,36 +295,41 @@ Layer modes
 Using an explicit extractor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For full control, pass a :class:`~case_explainer.SklearnMLPActivationExtractor`
-directly:
+For full control, wrap a
+:class:`~case_explainer.SklearnMLPActivationExtractor` in
+:class:`~case_explainer.CustomActivations`:
 
 .. code-block:: python
 
-   from case_explainer import CaseExplainer, SklearnMLPActivationExtractor
+   from case_explainer import (
+       CaseExplainer, CustomActivations, SklearnMLPActivationExtractor,
+   )
 
    ext = SklearnMLPActivationExtractor(layer="all_hidden", use_output_weights=True)
    explainer = CaseExplainer(
        X_train, y_train,
-       activation_extractor=ext,
-       model=mlp,
+       similarity=CustomActivations(model=mlp, extractor=ext),
    )
 
 Feature/activation hybrid
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``blend_alpha`` mixes feature-space and activation-space distances:
+:class:`~case_explainer.Blend` mixes feature-space and activation-space
+distances:
 
 .. code-block:: python
+
+   from case_explainer import Blend, HiddenActivations
 
    # 30% features, 70% activations
    explainer = CaseExplainer(
        X_train, y_train,
-       retrieval=HiddenActivationRetrieval(model=mlp, blend_alpha=0.3),
+       similarity=Blend(HiddenActivations(model=mlp), features=0.3),
    )
 
 :math:`d^2 = \alpha\,d_\text{feat}^2 + (1-\alpha)\,d_\text{act}^2`
 
-``blend_alpha=0.0`` is pure activations; ``blend_alpha=1.0`` is pure features
+``features=0.0`` is pure activations; ``features=1.0`` is pure features
 (identical to feature retrieval). Hybrid retrieval is a library extension and
 is not defined by Caruana et al. (1999).
 
@@ -316,11 +340,11 @@ When an MLP was trained on transformed features, provide the fitted transformer:
 
 .. code-block:: python
 
-   retrieval = HiddenActivationRetrieval(
+   similarity = HiddenActivations(
        model=mlp,
        input_transform=fitted_scaler,
    )
-   explainer = CaseExplainer(X_train, y_train, retrieval=retrieval)
+   explainer = CaseExplainer(X_train, y_train, similarity=similarity)
 
 The transform is applied before activation extraction and prediction. The
 ``scale_data`` parameter remains responsible only for feature-space retrieval.
@@ -336,11 +360,11 @@ contains no neighbors and reports correspondence as undefined.
 
 .. code-block:: python
 
-   from case_explainer import TreeLeafRetrieval
+   from case_explainer import TreeLeaf
 
    explainer = CaseExplainer(
        X_train, y_train,
-       retrieval=TreeLeafRetrieval(model=tree, overflow="truncate"),
+       similarity=TreeLeaf(model=tree, overflow="truncate"),
    )
 
 Set ``overflow="nearest"`` to explicitly fill the remaining positions with
@@ -350,7 +374,7 @@ Random-forest proximity
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 For a fitted sklearn random forest, proximity is the fraction of trees in
-which two samples reach the same leaf. ``ForestProximityRetrieval`` retrieves
+which two samples reach the same leaf. ``ForestProximity`` retrieves
 the cases with the smallest distance
 
 .. math::
@@ -360,11 +384,11 @@ the cases with the smallest distance
 
 .. code-block:: python
 
-    from case_explainer import ForestProximityRetrieval
+    from case_explainer import ForestProximity
 
     explainer = CaseExplainer(
          X_train, y_train,
-         retrieval=ForestProximityRetrieval(model=forest),
+         similarity=ForestProximity(model=forest),
     )
 
 This strategy compares leaf identities directly. It does not treat tree node
@@ -373,11 +397,12 @@ identifiers as numeric coordinates.
 Convenience aliases
 ^^^^^^^^^^^^^^^^^^^
 
-The existing ``activation_extractor``, ``activation_layer``,
-``use_output_weights``, and ``blend_alpha`` constructor path remains supported
-through version 0.2 and emits ``DeprecationWarning`` when activation retrieval
-is selected through that path. It will be removed no earlier than version 0.3.
-New code should use ``HiddenActivationRetrieval`` because it keeps one retrieval
+The ``activation_extractor``, ``activation_layer``, ``use_output_weights``,
+and ``blend_alpha`` constructor path, along with the ``retrieval=`` parameter,
+remains supported but emits ``DeprecationWarning``. New code should use
+``similarity=`` with the strategy classes (:class:`Features`,
+:class:`HiddenActivations`, :class:`CustomActivations`, :class:`TreeLeaf`,
+:class:`ForestProximity`, :class:`Blend`) because it keeps one similarity
 strategy together and makes preprocessing ownership explicit.
 
 See Also

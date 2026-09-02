@@ -18,21 +18,20 @@ Replace the shorthand constructor:
        blend_alpha=0.25,
    )
 
-with an explicit retrieval strategy:
+with an explicit similarity strategy:
 
 .. code-block:: python
 
    explainer = CaseExplainer(
        X_train,
        y_train,
-       retrieval=HiddenActivationRetrieval(
-           model=mlp,
-           layer="last_hidden",
-           blend_alpha=0.25,
+       similarity=Blend(
+           HiddenActivations(model=mlp, layer="last_hidden"),
+           features=0.25,
        ),
    )
 
-For a custom extractor, migrate its behavior into an explicit retrieval
+For a custom extractor, migrate its behavior into an explicit similarity
 strategy before upgrading to 0.3.0:
 
 .. code-block:: python
@@ -40,13 +39,42 @@ strategy before upgrading to 0.3.0:
    explainer = CaseExplainer(
        X_train,
        y_train,
-       retrieval=CustomActivationRetrieval(
-           model=model,
-           extractor=CallableActivationExtractor(custom_activation_function),
-           blend_alpha=0.25,
+       similarity=Blend(
+           CustomActivations(
+               model=model,
+               extractor=CallableActivationExtractor(custom_activation_function),
+           ),
+           features=0.25,
        ),
    )
 
-``CustomActivationRetrieval`` accepts any ``ActivationExtractor`` implementation
-and preserves the existing feature/activation blend geometry without relying on
-deprecated constructor parameters.
+``CustomActivations`` accepts any ``ActivationExtractor`` implementation and,
+wrapped in :class:`~case_explainer.Blend`, preserves the existing
+feature/activation blend geometry without relying on deprecated constructor
+parameters.
+
+Renamed ``retrieval=`` parameter
+--------------------------------
+
+The ``retrieval=`` parameter and the ``*Retrieval`` configuration classes
+introduced in 0.2 are deprecated in favor of ``similarity=`` and the
+intent-named strategy classes. The mapping is direct:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Deprecated
+     - Preferred
+   * - ``retrieval=HiddenActivationRetrieval(...)``
+     - ``similarity=HiddenActivations(...)``
+   * - ``retrieval=CustomActivationRetrieval(...)``
+     - ``similarity=CustomActivations(...)``
+   * - ``retrieval=TreeLeafRetrieval(...)``
+     - ``similarity=TreeLeaf(...)``
+   * - ``retrieval=ForestProximityRetrieval(...)``
+     - ``similarity=ForestProximity(...)``
+   * - ``...Retrieval(..., blend_alpha=a)``
+     - ``similarity=Blend(strategy, features=a)``
+
+The ``use_output_weights`` field is replaced by ``output_weighting``, where
+``use_output_weights=False`` becomes ``output_weighting="none"``.
