@@ -7,7 +7,7 @@ name = "case-explainer"
 version = "0.2.0"
 description = "General-purpose case-based explainability for machine learning"
 readme = "README.md"
-license = "MIT"
+license = { text = "MIT" }
 authors = [
     { name = "Paul Whitten", email = "pcw@case.edu" },
 ]
@@ -43,9 +43,9 @@ dependencies = [
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=3.0.0",
-    "black>=22.0.0",
-    "ruff>=0.1.0",
-    "mypy>=0.950",
+    "black==24.8.0",
+    "ruff==0.16.5",
+    "mypy==1.11.2",
     "build>=0.10.0",
     "twine>=4.0.0",
 ]
