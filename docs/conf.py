@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath('..'))
 project = 'Case-Explainer'
 copyright = '2025, Paul Whitten, Francis Wolff, Chris Papachristou'
 author = 'Paul Whitten, Francis Wolff, Chris Papachristou'
-release = '0.2.0'
+release = '0.2.1'
 version = '0.2'
 
 # -- General configuration ---------------------------------------------------

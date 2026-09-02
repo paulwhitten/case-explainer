@@ -10,7 +10,7 @@ import warnings
 import numpy as np
 import pandas as pd
 from dataclasses import replace
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any, Tuple, Union
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import NearestNeighbors
 
@@ -447,6 +447,10 @@ class CaseExplainer:
                     "HiddenActivations(output_weighting=...)), not on CaseExplainer"
                 )
             retrieval = _resolve_similarity(similarity, model)
+            # Features uses no activation index but may bind a prediction model,
+            # keeping the input/activation call signatures symmetric.
+            if isinstance(similarity, Features) and similarity.model is not None:
+                model = similarity.model
         elif retrieval is not None:
             warnings.warn(
                 RETRIEVAL_PARAM_DEPRECATION,
@@ -917,6 +921,27 @@ class CaseExplainer:
             explanations.append(explanation)
 
         return explanations
+
+    def compute_correspondence(
+        self, explanation: Explanation, distance_weighted: bool = True
+    ) -> Tuple[float, str]:
+        """Compute correspondence for an explanation using the configured weights.
+
+        Applies the ``class_weights`` passed to the constructor and returns
+        ``(correspondence, interpretation)``. This is the same computation
+        ``explain_instance`` runs, exposed as a method for reuse (for example,
+        to re-score an explanation with a different distance weighting).
+        """
+        neighbor_tuples = [
+            (n.index, n.distance, n.label) for n in explanation.neighbors
+        ]
+        # Bare name resolves to the module-level function, not this method.
+        return compute_correspondence(
+            neighbor_tuples,
+            explanation.predicted_class,
+            distance_weighted=distance_weighted,
+            class_weights=self.class_weights,
+        )
 
     def get_training_info(self) -> Dict[str, Any]:
         """Get information about the training data."""

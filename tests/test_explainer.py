@@ -381,6 +381,29 @@ class TestIntegrationRealClassifier:
         assert d["predicted_class_name"] in ("setosa", "versicolor", "virginica")
 
 
+# --- compute_correspondence method ---
+
+
+class TestComputeCorrespondenceMethod:
+    def test_method_matches_explain_instance(self, explainer, simple_data):
+        X, _ = simple_data
+        explanation = explainer.explain_instance(X[0], predicted_class=0)
+        correspondence, interpretation = explainer.compute_correspondence(explanation)
+        assert correspondence == explanation.correspondence
+        assert interpretation == explanation.correspondence_interpretation
+
+    def test_method_honors_class_weights(self, simple_data):
+        X, y = simple_data
+        weighted = CaseExplainer(
+            X, y, k=3, scale_data=False, class_weights={0: 1.0, 1: 5.0}
+        )
+        explanation = weighted.explain_instance(X[3], predicted_class=1)
+        # The method reuses the constructor's class_weights, matching the value
+        # explain_instance already stored.
+        correspondence, _ = weighted.compute_correspondence(explanation)
+        assert correspondence == explanation.correspondence
+
+
 # --- get_training_info ---
 
 

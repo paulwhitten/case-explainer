@@ -1031,6 +1031,34 @@ class TestSimilarityStrategies:
             for n in by_string.explain_instance(X_test[0], predicted_class=0).neighbors
         ] == expected
 
+    def test_features_model_enables_symmetric_call(self, iris, fitted_mlp):
+        X_train, X_test, y_train, _ = iris
+        features = CaseExplainer(
+            X_train, y_train, similarity=Features(model=fitted_mlp)
+        )
+        activations = CaseExplainer(
+            X_train, y_train, similarity=HiddenActivations(model=fitted_mlp)
+        )
+        # Identical call signature for both halves of the comparison.
+        expected = int(fitted_mlp.predict(X_test[:1])[0])
+        for explainer in (features, activations):
+            explanation = explainer.explain_instance(X_test[0])
+            assert explanation.predicted_class == expected
+
+    def test_features_without_model_still_requires_call_time_class(self, iris):
+        X_train, X_test, y_train, _ = iris
+        explainer = CaseExplainer(X_train, y_train, similarity=Features())
+        with pytest.raises(ValueError, match="predicted_class or model"):
+            explainer.explain_instance(X_test[0])
+
+    def test_features_call_time_model_overrides_bound_model(self, iris, fitted_mlp):
+        X_train, X_test, y_train, _ = iris
+        explainer = CaseExplainer(
+            X_train, y_train, similarity=Features(model=fitted_mlp)
+        )
+        explanation = explainer.explain_instance(X_test[0], predicted_class=2)
+        assert explanation.predicted_class == 2
+
     def test_unknown_similarity_string_raises(self, iris):
         X_train, _, y_train, _ = iris
         with pytest.raises(ValueError, match="Unknown similarity"):

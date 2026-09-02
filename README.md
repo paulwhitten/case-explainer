@@ -180,6 +180,19 @@ explainer_class_weighted = CaseExplainer(
 explanation = explainer.explain_instance(X_test[0])
 ```
 
+Binding the model to `Features` lets the input-space and activation-space halves
+of the comparison share one call signature:
+
+```python
+from case_explainer import Features
+
+input_space = CaseExplainer(X_train, y_train, similarity=Features(model=mlp))
+activation_space = CaseExplainer(X_train, y_train, similarity=HiddenActivations(model=mlp))
+
+for space in (input_space, activation_space):
+    space.explain_instance(X_test[0])   # identical call, no per-strategy kwargs
+```
+
 If the MLP was trained on transformed inputs, pass its fitted transformer as
 `input_transform`. The explainer applies it both when extracting activations
 and when asking the model for a prediction.

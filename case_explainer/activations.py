@@ -58,7 +58,16 @@ class Features:
     Caruana et al. (1999) comparison. Passing ``similarity=Features()`` is
     equivalent to passing no ``similarity`` at all; it exists so the two
     halves of the comparison read symmetrically in user code.
+
+    Args:
+        model: Optional fitted classifier used to supply the predicted class
+            during ``explain_instance``. Feature-space distance itself needs no
+            model, but binding one here lets the input-space and activation-space
+            branches share an identical call signature. A call-time ``model=``
+            or ``predicted_class=`` still overrides it.
     """
+
+    model: Optional[Any] = None
 
 
 @dataclass(frozen=True)
