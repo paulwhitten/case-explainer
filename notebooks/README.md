@@ -31,7 +31,7 @@ Interactive Jupyter notebooks demonstrating case-based explainability across mul
 ### 4. Hardware Trojan (`04_hardware_trojan_tutorial.ipynb`)
 **Status:** ✅ Complete
 
-**Security domain** with 56k samples, 10 features, large-scale real-world data
+**Security domain** with 56k samples, 5 features, large-scale real-world data
 
 ## Running the Notebooks
 

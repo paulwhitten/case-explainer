@@ -160,7 +160,7 @@ class Explanation:
 
     def plot(
         self,
-        plot_type: str = "radar",
+        plot_type: str = "bar",
         highlight_differences: bool = True,
         show_distances: bool = True,
         save_path: Optional[str] = None,
@@ -170,7 +170,9 @@ class Explanation:
         Visualize the explanation.
 
         Args:
-            plot_type: 'radar', 'bar', or 'parallel'
+            plot_type: 'bar' (default), 'radar', or 'parallel'. Radar and
+                parallel coordinates are not implemented yet and fall back
+                to the bar plot.
             highlight_differences: Whether to highlight feature differences
             show_distances: Whether to show distance values
             save_path: Path to save figure (if provided)

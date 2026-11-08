@@ -30,7 +30,8 @@ Key Features
 * **Automatic scaling**: Optional feature standardization
 * **Metadata tracking**: Attach provenance data to training samples
 * **Sklearn-compatible API**: Familiar interface for ML practitioners
-* **Batch explanations**: Explain multiple predictions efficiently
+* **Batch explanations**: Explain many predictions in one call
+* **Model-informed similarity**: Retrieve cases from a neural network's hidden activations, a decision tree's matching leaf, or random-forest proximity via ``similarity=``
 
 Quick Start
 -----------
@@ -68,19 +69,19 @@ Installation
 
 .. code-block:: bash
 
-   # From source (current development version)
+   pip install case-explainer
+
+   # Or from source (current development version)
+   git clone https://github.com/paulwhitten/case-explainer.git
    cd case-explainer
    pip install -e .
-
-   # Dependencies
-   pip install numpy scipy scikit-learn matplotlib pandas
 
 Performance
 -----------
 
 Validated across multiple domains (single runs on reference hardware):
 
-* **Hardware Trojan Detection**: 99.9% average correspondence, 25.7 ms/sample
+* **Hardware Trojan Detection**: 99.3% average correspondence, 25.7 ms/sample
 * **Credit Card Fraud Detection**: 100% average correspondence, 36.4 ms/sample
 * **Medical Diagnosis (Breast Cancer)**: 93.3% average correspondence, 25.9 ms/sample
 * **Scalability**: Tested up to 200k training samples

@@ -25,7 +25,7 @@ You get: *"This sample is classified as X because it resembles these 5 training 
 - **Automatic scaling**: Optional feature standardization
 - **Metadata tracking**: Attach provenance data to training samples
 - **Sklearn-compatible API**: Familiar interface for ML practitioners
-- **Batch explanations**: Explain multiple predictions efficiently
+- **Batch explanations**: Explain many predictions in one call
 - **Model-informed similarity**: Retrieve cases from a neural network's learned representation or a decision tree's matching leaf
 
 ## Installation
@@ -233,6 +233,16 @@ same. Use feature retrieval when observed attributes define the comparison you
 want to defend. Use model-informed retrieval when the model's internal
 partitioning or representation is the relevant basis for precedent.
 
+Neighbor distances are reported in the retrieval space that produced them, so
+their scale differs between modes: standardized feature distances are
+typically larger than hidden-activation distances, and forest proximity
+distances lie in `[0, 1]`. Because correspondence weights neighbors by
+`1 / (distance + 1)^3`, correspondence values are comparable within one
+retrieval space but not across spaces. The `metric=` constructor argument
+applies to feature, activation, and blended retrieval; tree-leaf retrieval
+always orders same-leaf cases by Euclidean distance in standardized feature
+space, and forest proximity defines its own distance.
+
 ## Examples
 
 See `quickstart.py` for a complete working example:
@@ -325,11 +335,14 @@ explainer = CaseExplainer(
     y_train,                    # Training labels
     feature_names=None,         # Optional feature names
     class_names=None,           # Optional class names {0: 'cat', 1: 'dog'}
-    algorithm='kd_tree',        # Indexing strategy
+    algorithm='kd_tree',        # k-NN algorithm: 'auto', 'kd_tree', 'ball_tree', 'brute'
+    metric='euclidean',         # Distance metric for feature/activation retrieval
     scale_data=True,            # Standardize features
+    class_weights=None,         # Optional per-class weights for correspondence
     metadata=None,              # Optional provenance data
-    # Explicit strategy object for hidden activations, tree leaves, or forests
-    retrieval=None,
+    # Retrieval space: None/'features', or HiddenActivations(...), TreeLeaf(...),
+    # ForestProximity(...), Blend(...)
+    similarity=None,
 )
 ```
 
@@ -479,10 +492,11 @@ Contributions welcome! Core functionality and release infrastructure are complet
 
 **Priority areas:**
 
-- Additional distance metrics (Manhattan, Cosine)
+- Vectorized batch explanation (one k-NN query and one `predict` call per batch)
+- Consistent `metric=` handling across tree-leaf and forest retrieval
+- Distance normalization so correspondence is comparable across retrieval spaces
 - Approximate nearest neighbors (Annoy, FAISS) for large-scale data
 - Radar and parallel coordinate visualizations
-- More comprehensive unit tests
 
 ## Contact
 
