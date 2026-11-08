@@ -65,3 +65,23 @@ python benchmark.py \
 
 CI uploads ``retrieval_candidate.csv`` on every run so a failed relationship
 can be inspected without rerunning the benchmark.
+
+## Retrieval-space validation
+
+``similarity_validation.csv`` records every retrieval space on the reference
+domains (Iris, UCI Breast Cancer, hardware trojan detection; credit-card fraud
+when ``creditcard.csv`` is present), with raw and ``median_nn``-normalized
+distances. Each row reports the model's accuracy on the explained samples, mean
+correspondence, mean correspondence on correct and incorrect predictions, the
+ROC AUC of correspondence as a predictor of correctness, the mean distance to
+the nearest retrieved case, the normalization scale, and batch time per sample.
+
+Regenerate it with:
+
+```bash
+python validate_similarity_modes.py            # writes benchmarks/similarity_validation.csv
+python validate_similarity_modes.py --domains iris breast_cancer --max-test 500
+```
+
+Splits are 70/30 stratified with ``random_state=42``; large domains explain a
+random subset of 2,000 test samples. Timings are single-run local measurements.

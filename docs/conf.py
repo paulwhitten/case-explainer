@@ -13,8 +13,8 @@ sys.path.insert(0, os.path.abspath('..'))
 project = 'Case-Explainer'
 copyright = '2025, Paul Whitten, Francis Wolff, Chris Papachristou'
 author = 'Paul Whitten, Francis Wolff, Chris Papachristou'
-release = '0.2.1'
-version = '0.2'
+release = '0.3.0'
+version = '0.3'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

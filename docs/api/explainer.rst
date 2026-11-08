@@ -44,20 +44,14 @@ Similarity Strategies
 .. autoclass:: Blend
     :members:
 
-Deprecated Retrieval Configurations
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Utilities
+^^^^^^^^^
 
-.. autoclass:: HiddenActivationRetrieval
-    :members:
+.. automethod:: CaseExplainer.compute_correspondence
 
-.. autoclass:: CustomActivationRetrieval
-    :members:
+.. automethod:: CaseExplainer.get_training_info
 
-.. autoclass:: TreeLeafRetrieval
-    :members:
-
-.. autoclass:: ForestProximityRetrieval
-    :members:
+.. autoattribute:: CaseExplainer.retrieval_space
 
 Example Usage
 -------------
@@ -394,16 +388,53 @@ the cases with the smallest distance
 This strategy compares leaf identities directly. It does not treat tree node
 identifiers as numeric coordinates.
 
-Convenience aliases
-^^^^^^^^^^^^^^^^^^^
+Distance metric by retrieval space
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The ``activation_extractor``, ``activation_layer``, ``use_output_weights``,
-and ``blend_alpha`` constructor path, along with the ``retrieval=`` parameter,
-remains supported but emits ``DeprecationWarning``. New code should use
-``similarity=`` with the strategy classes (:class:`Features`,
-:class:`HiddenActivations`, :class:`CustomActivations`, :class:`TreeLeaf`,
-:class:`ForestProximity`, :class:`Blend`) because it keeps one similarity
-strategy together and makes preprocessing ownership explicit.
+``metric=`` names the distance used inside the retrieval space. Feature,
+activation, and blended retrieval pass it to sklearn's ``NearestNeighbors``;
+:class:`TreeLeaf` uses it to order same-leaf cases in standardized feature
+space. :class:`ForestProximity` defines its own distance (one minus the
+shared-leaf fraction) and raises ``ValueError`` for any other ``metric``.
+
+Comparing correspondence across retrieval spaces
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Neighbor distances are reported in the retrieval space that produced them.
+Standardized feature distances are typically an order of magnitude larger than
+hidden-activation distances, and forest proximities lie in ``[0, 1]``. Because
+correspondence weights neighbors by :math:`1/(d+1)^3`, raw correspondence
+values are comparable within one space but not across spaces.
+
+Pass ``distance_normalization="median_nn"`` to divide every distance by the
+median distance from a training case to its nearest distinct training case in
+the active space (duplicates are excluded from the estimate):
+
+.. code-block:: python
+
+   explainer = CaseExplainer(
+       X_train, y_train,
+       similarity=HiddenActivations(model=mlp),
+       distance_normalization="median_nn",
+   )
+   explainer.distance_scale_        # the divisor that was applied
+   explanation = explainer.explain_instance(x)
+   explanation.distance_scale       # same value, carried on the explanation
+   explanation.retrieval_space      # "activations"
+
+A normalized distance of ``1.0`` means "as far as a typical training case is
+from its closest distinct neighbor". Neighbor selection is unaffected; only the
+reported distances and therefore the correspondence weighting change. Use
+``correspondence_thresholds=(medium, high)`` to set the interpretation cut
+points for your domain.
+
+Removed parameters
+^^^^^^^^^^^^^^^^^^
+
+The 0.2.x ``activation_extractor``, ``activation_layer``,
+``use_output_weights``, ``blend_alpha``, and ``retrieval`` parameters were
+removed in 0.3.0 and raise ``TypeError`` with a migration hint. See
+:doc:`/migration`.
 
 See Also
 --------

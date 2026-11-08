@@ -13,10 +13,25 @@ compute_correspondence
 
 .. autofunction:: compute_correspondence
 
+interpret_correspondence
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autofunction:: interpret_correspondence
+
+validate_thresholds
+^^^^^^^^^^^^^^^^^^^
+
+.. autofunction:: validate_thresholds
+
 euclidean_distance
 ^^^^^^^^^^^^^^^^^^
 
 .. autofunction:: euclidean_distance
+
+compute_all_distances
+^^^^^^^^^^^^^^^^^^^^^
+
+.. autofunction:: compute_all_distances
 
 Theory
 ------
@@ -60,13 +75,26 @@ Interpretation
 **Important**: Correspondence measures neighbor agreement, not prediction correctness. High correspondence 
 can occur with incorrect predictions if the training data contains systematic errors or learned incorrect patterns.
 
-**Example Interpretation Thresholds** (domain-dependent, not universal standards):
+**Default Interpretation Thresholds** (domain-dependent, not universal standards):
 
 * **High (≥0.85)**: Strong agreement with retrieved neighbors
 * **Medium (0.70-0.85)**: Moderate agreement with retrieved neighbors
 * **Low (<0.70)**: Weak agreement, potentially unusual sample or inconsistent neighbors
 
-*Note: Appropriate thresholds should be determined empirically for each specific domain and use case.*
+Pass ``thresholds=(medium, high)`` to ``compute_correspondence`` or
+``correspondence_thresholds=(medium, high)`` to ``CaseExplainer`` to use cut
+points validated for your domain.
+
+Distance scale and retrieval space
+""""""""""""""""""""""""""""""""""
+
+The ``+1`` offset in the weight assumes distances on roughly the standardized
+feature scale. Hidden-activation distances and forest proximities are much
+smaller, so the weighting flattens toward plain voting in those spaces and raw
+correspondence values are not comparable across retrieval spaces. Construct the
+explainer with ``distance_normalization="median_nn"`` to divide distances by
+the median distance from a training case to its nearest distinct training case
+in the active space before weighting.
 
 Distance Weighting
 ^^^^^^^^^^^^^^^^^^
@@ -88,22 +116,21 @@ Computing Correspondence
 .. code-block:: python
 
    from case_explainer.metrics import compute_correspondence
-   import numpy as np
 
-   # Example: 5 neighbors with their distances and labels
-   neighbor_distances = np.array([0.1, 0.2, 0.3, 0.5, 0.8])
-   neighbor_labels = np.array([1, 1, 1, 0, 1])
-   predicted_class = 1
+   # Example: 5 neighbors as (training_index, distance, label) tuples
+   neighbors = [(12, 0.1, 1), (40, 0.2, 1), (7, 0.3, 1), (91, 0.5, 0), (3, 0.8, 1)]
 
-   # Compute correspondence
-   correspondence = compute_correspondence(
-       neighbor_distances=neighbor_distances,
-       neighbor_labels=neighbor_labels,
-       predicted_class=predicted_class
+   correspondence, interpretation = compute_correspondence(
+       neighbors, predicted_class=1
    )
+   print(f"Correspondence: {correspondence:.2%} ({interpretation})")
+   # Output: Correspondence: 86.85% (high)
 
-   print(f"Correspondence: {correspondence:.2%}")
-   # Output: Correspondence: 94.5%
+   # Domain-specific interpretation thresholds
+   _, strict = compute_correspondence(
+       neighbors, predicted_class=1, thresholds=(0.90, 0.95)
+   )
+   # strict == "low"
 
 Distance Computation
 ^^^^^^^^^^^^^^^^^^^^
@@ -125,36 +152,33 @@ Understanding Correspondence Behavior
 
 .. code-block:: python
 
-   import numpy as np
    from case_explainer.metrics import compute_correspondence
 
+   def neighbors(distances, labels):
+       return list(zip(range(len(distances)), distances, labels))
+
+   distances = [0.1, 0.2, 0.3, 0.4, 0.5]
+
    # Complete agreement: all neighbors same class
-   distances = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
-   labels = np.array([1, 1, 1, 1, 1])
-   corr = compute_correspondence(distances, labels, predicted_class=1)
+   corr, _ = compute_correspondence(neighbors(distances, [1, 1, 1, 1, 1]), 1)
    print(f"Complete neighbor agreement: {corr:.2%}")  # 100%
 
    # Complete disagreement: all neighbors different class
-   labels = np.array([0, 0, 0, 0, 0])
-   corr = compute_correspondence(distances, labels, predicted_class=1)
+   corr, _ = compute_correspondence(neighbors(distances, [0, 0, 0, 0, 0]), 1)
    print(f"Complete disagreement: {corr:.2%}")  # 0%
 
    # Mixed: 3 same class, 2 different
-   labels = np.array([1, 1, 1, 0, 0])
-   corr = compute_correspondence(distances, labels, predicted_class=1)
-   print(f"Mixed (3:2): {corr:.2%}")  # ~80-90% depending on distances
+   corr, _ = compute_correspondence(neighbors(distances, [1, 1, 1, 0, 0]), 1)
+   print(f"Mixed (3:2): {corr:.2%}")  # ~70% depending on distances
 
    # Effect of distance: closer neighbors matter more
-   # Close neighbors same class
-   distances_close = np.array([0.1, 0.2, 0.3, 1.0, 1.5])
-   labels_mixed = np.array([1, 1, 1, 0, 0])
-   corr_close = compute_correspondence(distances_close, labels_mixed, predicted_class=1)
-   
-   # Far neighbors same class
-   distances_far = np.array([1.0, 1.5, 2.0, 0.1, 0.2])
-   labels_mixed = np.array([1, 1, 1, 0, 0])
-   corr_far = compute_correspondence(distances_far, labels_mixed, predicted_class=1)
-   
+   labels_mixed = [1, 1, 1, 0, 0]
+   corr_close, _ = compute_correspondence(
+       neighbors([0.1, 0.2, 0.3, 1.0, 1.5], labels_mixed), 1
+   )
+   corr_far, _ = compute_correspondence(
+       neighbors([1.0, 1.5, 2.0, 0.1, 0.2], labels_mixed), 1
+   )
    print(f"Close neighbors same class: {corr_close:.2%}")  # Higher
    print(f"Far neighbors same class: {corr_far:.2%}")      # Lower
 
@@ -166,16 +190,14 @@ For imbalanced datasets, you can adjust correspondence using class weights:
 .. code-block:: python
 
    # Without class weights
-   distances = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
-   labels = np.array([1, 1, 0, 0, 0])  # Minority class 1
-   
-   corr = compute_correspondence(distances, labels, predicted_class=1)
+   neighbors = [(0, 0.1, 1), (1, 0.2, 1), (2, 0.3, 0), (3, 0.4, 0), (4, 0.5, 0)]
+
+   corr, _ = compute_correspondence(neighbors, predicted_class=1)
    print(f"No weights: {corr:.2%}")
-   
-   # With class weights (weight minority class more)
-   corr_weighted = compute_correspondence(
-       distances, labels, predicted_class=1,
-       class_weights={0: 1.0, 1: 3.0}
+
+   # With class weights (weight minority class 1 more)
+   corr_weighted, _ = compute_correspondence(
+       neighbors, predicted_class=1, class_weights={0: 1.0, 1: 3.0}
    )
    print(f"With weights: {corr_weighted:.2%}")  # Higher
 

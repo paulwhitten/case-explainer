@@ -45,6 +45,9 @@ class Explanation:
         correspondence_interpretation: str,
         feature_names: Optional[List[str]] = None,
         class_names: Optional[Dict[Any, str]] = None,
+        retrieval_space: str = "features",
+        distance_metric: Optional[str] = None,
+        distance_scale: float = 1.0,
     ):
         """
         Initialize explanation.
@@ -59,6 +62,17 @@ class Explanation:
             correspondence_interpretation: "high", "medium", or "low"
             feature_names: Names of features (optional)
             class_names: Mapping from class labels to names (optional)
+            retrieval_space: Which space the neighbors were retrieved in
+                (``"features"``, ``"activations"``, ``"hybrid(features=0.30)"``,
+                ``"tree_leaf"``, or ``"forest_proximity"``). Neighbor distances
+                are measured in this space, so their scale is only comparable
+                between explanations that share a retrieval space.
+            distance_metric: Name of the distance used within the retrieval
+                space (for example ``"euclidean"`` or ``"shared_leaf_fraction"``).
+            distance_scale: Divisor applied to raw distances before they were
+                stored on the neighbors. ``1.0`` means raw distances; a larger
+                value means distances were normalized by the explainer
+                (``raw_distance = neighbor.distance * distance_scale``).
         """
         self.test_sample = test_sample
         self.test_index = test_index
@@ -67,6 +81,9 @@ class Explanation:
         self.true_class = true_class
         self.correspondence = correspondence
         self.correspondence_interpretation = correspondence_interpretation
+        self.retrieval_space = retrieval_space
+        self.distance_metric = distance_metric
+        self.distance_scale = float(distance_scale)
         self.feature_names = feature_names or [
             f"feature_{i}" for i in range(len(test_sample))
         ]
@@ -112,6 +129,7 @@ class Explanation:
         lines.append(
             f"Correspondence: {self.correspondence:.2%} ({self.correspondence_interpretation})"
         )
+        lines.append(f"Retrieval space: {self.describe_retrieval_space()}")
         lines.append("")
         lines.append(f"Nearest {len(self.neighbors)} neighbors:")
         lines.append("-" * 60)
@@ -132,6 +150,15 @@ class Explanation:
         lines.append("=" * 60)
         return "\n".join(lines)
 
+    def describe_retrieval_space(self) -> str:
+        """One-line description of the retrieval space and distance units."""
+        text = self.retrieval_space
+        if self.distance_metric:
+            text += f" ({self.distance_metric})"
+        if self.distance_scale != 1.0:
+            text += f", distances normalized by {self.distance_scale:.4g}"
+        return text
+
     def to_dict(self) -> Dict[str, Any]:
         """Export explanation as dictionary (for JSON serialization)."""
         return {
@@ -144,6 +171,9 @@ class Explanation:
             "is_correct": self.is_correct(),
             "correspondence": float(self.correspondence),
             "correspondence_interpretation": self.correspondence_interpretation,
+            "retrieval_space": self.retrieval_space,
+            "distance_metric": self.distance_metric,
+            "distance_scale": self.distance_scale,
             "neighbors": [
                 {
                     "index": n.index,
@@ -257,5 +287,6 @@ class Explanation:
             f"Explanation(test_index={self.test_index}, "
             f"predicted={self.get_predicted_class_name()}, "
             f"correspondence={self.correspondence:.2%}, "
-            f"neighbors={len(self.neighbors)})"
+            f"neighbors={len(self.neighbors)}, "
+            f"space='{self.retrieval_space}')"
         )

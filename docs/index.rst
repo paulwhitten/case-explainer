@@ -26,11 +26,11 @@ Key Features
 
 * **Model-agnostic**: Works with any classifier (sklearn, XGBoost, neural networks, etc.)
 * **Correspondence metric**: Quantifies agreement between prediction and neighbors
-* **Multiple indexing strategies**: K-D Tree, Ball Tree, or brute force
+* **Pluggable k-NN backend**: sklearn's ``auto``, ``kd_tree``, ``ball_tree``, or ``brute`` via ``algorithm=``
 * **Automatic scaling**: Optional feature standardization
 * **Metadata tracking**: Attach provenance data to training samples
 * **Sklearn-compatible API**: Familiar interface for ML practitioners
-* **Batch explanations**: Explain many predictions in one call
+* **Batch explanations**: Vectorized ``explain_batch`` with one model call and one k-NN query per batch
 * **Model-informed similarity**: Retrieve cases from a neural network's hidden activations, a decision tree's matching leaf, or random-forest proximity via ``similarity=``
 
 Quick Start

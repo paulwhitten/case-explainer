@@ -178,55 +178,6 @@ SimilarityStrategy = Union[
 
 
 # ---------------------------------------------------------------------------
-# Legacy retrieval configuration (deprecated; superseded by the strategies
-# above and the ``similarity=`` parameter). Retained as the internal
-# representation and for backward compatibility with ``retrieval=``.
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class HiddenActivationRetrieval:
-    """Deprecated. Use :class:`HiddenActivations` (with :class:`Blend`).
-
-    ``output_weighting`` accepts ``"mean_abs"`` (the compatibility default),
-    ``"predicted_class"``, or ``"none"``. Setting the legacy
-    ``use_output_weights`` field to false also selects unweighted activations.
-    """
-
-    model: Any
-    layer: Union[str, int] = "last_hidden"
-    use_output_weights: bool = True
-    output_weighting: str = "mean_abs"
-    blend_alpha: float = 0.0
-    input_transform: Optional[Any] = None
-
-
-@dataclass(frozen=True)
-class CustomActivationRetrieval:
-    """Deprecated. Use :class:`CustomActivations` (with :class:`Blend`)."""
-
-    model: Any
-    extractor: "ActivationExtractor"
-    blend_alpha: float = 0.0
-
-
-@dataclass(frozen=True)
-class TreeLeafRetrieval:
-    """Deprecated. Use :class:`TreeLeaf`."""
-
-    model: Any
-    overflow: str = "truncate"
-    within_leaf: str = "feature_distance"
-
-
-@dataclass(frozen=True)
-class ForestProximityRetrieval:
-    """Deprecated. Use :class:`ForestProximity`."""
-
-    model: Any
-
-
-# ---------------------------------------------------------------------------
 # Abstract base
 # ---------------------------------------------------------------------------
 

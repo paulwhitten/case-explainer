@@ -49,10 +49,10 @@ jobs:
         run: pip install -e ".[dev]"
 
       - name: Check formatting (black)
-        run: black --check case_explainer tests benchmark.py
+        run: black --check case_explainer tests benchmark.py validate_similarity_modes.py
 
       - name: Lint (ruff)
-        run: ruff check case_explainer tests benchmark.py
+        run: ruff check case_explainer tests benchmark.py validate_similarity_modes.py
 
       - name: Type check (mypy)
         run: mypy case_explainer

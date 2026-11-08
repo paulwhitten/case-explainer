@@ -209,6 +209,9 @@ class TestToDict:
             "is_correct",
             "correspondence",
             "correspondence_interpretation",
+            "retrieval_space",
+            "distance_metric",
+            "distance_scale",
             "neighbors",
             "feature_names",
         }

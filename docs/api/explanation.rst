@@ -21,7 +21,28 @@ Key Attributes
 
 .. attribute:: Explanation.correspondence_interpretation
 
-   Human-readable interpretation of correspondence: 'high' (≥85%), 'medium' (70-85%), or 'low' (<70%).
+   Human-readable interpretation of correspondence: 'high', 'medium', or 'low'
+   according to the explainer's ``correspondence_thresholds`` (default: high at
+   or above 0.85, medium at or above 0.70), or 'undefined' when no neighbors
+   were retrieved.
+
+.. attribute:: Explanation.retrieval_space
+
+   Which space the neighbors were retrieved in: ``'features'``,
+   ``'activations'``, ``'hybrid(features=0.30)'``, ``'tree_leaf'``, or
+   ``'forest_proximity'``. Neighbor distances are measured in this space.
+
+.. attribute:: Explanation.distance_metric
+
+   Name of the distance used inside the retrieval space, for example
+   ``'euclidean'`` or ``'shared_leaf_fraction'``.
+
+.. attribute:: Explanation.distance_scale
+
+   Divisor applied to raw distances before they were stored on the neighbors.
+   ``1.0`` means raw distances; with ``distance_normalization="median_nn"`` it
+   is the median nearest-neighbor distance among training cases, and
+   ``raw_distance = neighbor.distance * distance_scale``.
 
 .. attribute:: Explanation.neighbors
 
@@ -39,6 +60,8 @@ Methods
 ^^^^^^^
 
 .. automethod:: Explanation.is_correct
+
+.. automethod:: Explanation.describe_retrieval_space
 
 .. automethod:: Explanation.summary
 
@@ -137,6 +160,7 @@ Exporting Explanations
    # The dictionary contains:
    # - correspondence: float
    # - correspondence_interpretation: str
+   # - retrieval_space, distance_metric, distance_scale
    # - predicted_class: int
    # - true_class: int or None
    # - is_correct: bool or None
@@ -156,6 +180,7 @@ Generating Summaries
    #   Predicted class: 1
    #   True class: 1 (CORRECT)
    #   Correspondence: 94.3% (high)
+   #   Retrieval space: features (euclidean)
    #
    # Nearest neighbors:
    #   1. Index 42, distance 0.123, label 1

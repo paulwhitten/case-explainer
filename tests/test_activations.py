@@ -22,13 +22,7 @@ from case_explainer import (
     ForestProximity,
     Blend,
 )
-from case_explainer.activations import (
-    HiddenActivationRetrieval,
-)
-from case_explainer._compat import (
-    LEGACY_ACTIVATION_PARAMETERS,
-    LEGACY_ACTIVATION_REMOVAL_VERSION,
-)
+from case_explainer._compat import REMOVED_PARAMETERS
 from case_explainer.activations import _apply_hidden_activation
 
 
@@ -287,86 +281,70 @@ class TestCallableActivationExtractor:
 class TestCaseExplainerActivations:
     def test_pure_activations_returns_explanation(self, iris, fitted_mlp):
         X_train, X_test, y_train, _ = iris
-        ext = SklearnMLPActivationExtractor()
         explainer = CaseExplainer(
-            X_train,
-            y_train,
-            k=5,
-            activation_extractor=ext,
-            model=fitted_mlp,
-            blend_alpha=0.0,
+            X_train, y_train, k=5, similarity=HiddenActivations(model=fitted_mlp)
         )
         exp = explainer.explain_instance(X_test[0], model=fitted_mlp)
         assert exp is not None
         assert len(exp.neighbors) == 5
+        assert exp.retrieval_space == "activations"
 
-    def test_pure_features_returns_explanation(self, iris, fitted_mlp):
-        """blend_alpha=1.0 with extractor falls back to feature-only indexing."""
+    def test_blend_features_one_matches_feature_mode(self, iris, fitted_mlp):
+        """Blend(features=1.0) is feature-only indexing."""
         X_train, X_test, y_train, _ = iris
-        ext = SklearnMLPActivationExtractor()
-        explainer = CaseExplainer(
+        blended = CaseExplainer(
             X_train,
             y_train,
             k=5,
-            activation_extractor=ext,
-            model=fitted_mlp,
-            blend_alpha=1.0,
+            similarity=Blend(HiddenActivations(model=fitted_mlp), features=1.0),
         )
-        exp = explainer.explain_instance(X_test[0], model=fitted_mlp)
-        assert len(exp.neighbors) == 5
+        features = CaseExplainer(X_train, y_train, k=5)
+        blended_ids = sorted(
+            n.index
+            for n in blended.explain_instance(X_test[0], predicted_class=0).neighbors
+        )
+        feature_ids = sorted(
+            n.index
+            for n in features.explain_instance(X_test[0], predicted_class=0).neighbors
+        )
+        assert blended_ids == feature_ids
+        assert blended.retrieval_space == "features"
 
     def test_hybrid_blend_returns_explanation(self, iris, fitted_mlp):
         X_train, X_test, y_train, _ = iris
-        ext = SklearnMLPActivationExtractor()
         explainer = CaseExplainer(
             X_train,
             y_train,
             k=5,
-            activation_extractor=ext,
-            model=fitted_mlp,
-            blend_alpha=0.5,
+            similarity=Blend(HiddenActivations(model=fitted_mlp), features=0.5),
         )
         exp = explainer.explain_instance(X_test[0], model=fitted_mlp)
         assert len(exp.neighbors) == 5
+        assert exp.retrieval_space == "hybrid(features=0.50)"
+        for n in exp.neighbors:
+            assert n.distance >= 0.0
 
-    def test_activation_and_feature_neighbors_differ(self, iris, fitted_mlp):
-        """Pure activations and pure features generally select different neighbors."""
+    def test_activation_and_feature_neighbors_are_valid(self, iris, fitted_mlp):
         X_train, X_test, y_train, _ = iris
-        ext_act = SklearnMLPActivationExtractor()
-
         act_explainer = CaseExplainer(
-            X_train,
-            y_train,
-            k=5,
-            activation_extractor=ext_act,
-            model=fitted_mlp,
-            blend_alpha=0.0,
+            X_train, y_train, k=5, similarity=HiddenActivations(model=fitted_mlp)
         )
-        feat_explainer = CaseExplainer(
-            X_train,
-            y_train,
-            k=5,
-        )
-
-        act_exp = act_explainer.explain_instance(X_test[0], model=fitted_mlp)
+        feat_explainer = CaseExplainer(X_train, y_train, k=5)
+        act_ids = {n.index for n in act_explainer.explain_instance(X_test[0]).neighbors}
         feat_exp = feat_explainer.explain_instance(X_test[0], model=fitted_mlp)
-
-        act_ids = {n.index for n in act_exp.neighbors}
         feat_ids = {n.index for n in feat_exp.neighbors}
-        # At least sometimes the sets differ (relax assertion: just check both are valid)
         assert len(act_ids) == 5
         assert len(feat_ids) == 5
 
     def test_decision_tree_extractor_integration(self, iris, fitted_tree):
         X_train, X_test, y_train, _ = iris
-        ext = DecisionTreeActivationExtractor()
         explainer = CaseExplainer(
             X_train,
             y_train,
             k=5,
-            activation_extractor=ext,
-            model=fitted_tree,
-            blend_alpha=0.0,
+            similarity=CustomActivations(
+                model=fitted_tree, extractor=DecisionTreeActivationExtractor()
+            ),
         )
         exp = explainer.explain_instance(X_test[0], model=fitted_tree)
         assert len(exp.neighbors) == 5
@@ -377,54 +355,28 @@ class TestCaseExplainerActivations:
         def fn(model, X):
             return model.predict_proba(np.atleast_2d(X))
 
-        ext = CallableActivationExtractor(fn)
         explainer = CaseExplainer(
             X_train,
             y_train,
             k=5,
-            activation_extractor=ext,
-            model=fitted_mlp,
-            blend_alpha=0.0,
+            similarity=CustomActivations(
+                model=fitted_mlp, extractor=CallableActivationExtractor(fn)
+            ),
         )
         exp = explainer.explain_instance(X_test[0], model=fitted_mlp)
         assert len(exp.neighbors) == 5
 
-    def test_missing_model_raises(self, iris):
+    def test_unfitted_mlp_raises(self, iris):
         X_train, _, y_train, _ = iris
-        ext = SklearnMLPActivationExtractor()
-        with pytest.raises(ValueError, match="model"):
+        with pytest.raises(ValueError, match="fitted"):
             CaseExplainer(
-                X_train,
-                y_train,
-                k=5,
-                activation_extractor=ext,
-                model=None,
-            )
-
-    def test_invalid_blend_alpha_raises(self, iris, fitted_mlp):
-        X_train, _, y_train, _ = iris
-        ext = SklearnMLPActivationExtractor()
-        with pytest.raises(ValueError, match="blend_alpha"):
-            CaseExplainer(
-                X_train,
-                y_train,
-                k=5,
-                activation_extractor=ext,
-                model=fitted_mlp,
-                blend_alpha=1.5,
+                X_train, y_train, similarity=HiddenActivations(model=MLPClassifier())
             )
 
     def test_repr_shows_mode(self, iris, fitted_mlp):
         X_train, _, y_train, _ = iris
-        ext = SklearnMLPActivationExtractor()
-
         act_explainer = CaseExplainer(
-            X_train,
-            y_train,
-            k=5,
-            activation_extractor=ext,
-            model=fitted_mlp,
-            blend_alpha=0.0,
+            X_train, y_train, k=5, similarity=HiddenActivations(model=fitted_mlp)
         )
         assert "activations" in repr(act_explainer)
 
@@ -432,44 +384,34 @@ class TestCaseExplainerActivations:
             X_train,
             y_train,
             k=5,
-            activation_extractor=SklearnMLPActivationExtractor(),
-            model=fitted_mlp,
-            blend_alpha=0.4,
+            similarity=Blend(HiddenActivations(model=fitted_mlp), features=0.4),
         )
         assert "hybrid" in repr(hybrid_explainer)
 
         feat_explainer = CaseExplainer(X_train, y_train, k=5)
         assert "features" in repr(feat_explainer)
 
-    def test_backward_compat_no_activation_extractor(self, iris):
-        """Default (no activation_extractor) must work exactly as before."""
+    def test_default_is_feature_space(self, iris):
         X_train, X_test, y_train, _ = iris
         explainer = CaseExplainer(X_train, y_train, k=5)
         exp = explainer.explain_instance(X_test[0], predicted_class=0)
         assert len(exp.neighbors) == 5
-        assert explainer._act_scaler is None
+        assert isinstance(explainer.similarity, Features)
+        assert exp.retrieval_space == "features"
 
-    def test_blend_alpha_geometry(self, iris, fitted_mlp):
-        """
-        Distance in hybrid space equals
-        sqrt(alpha * d_feat^2 + (1-alpha) * d_act^2)
-        which is a proper interpolation between the two metrics.
-        """
+    def test_blend_distances_non_negative(self, iris, fitted_mlp):
         X_train, X_test, y_train, _ = iris
-
-        alpha = 0.5
-        ext = SklearnMLPActivationExtractor(use_output_weights=False)
         explainer = CaseExplainer(
             X_train,
             y_train,
             k=3,
-            activation_extractor=ext,
-            model=fitted_mlp,
-            blend_alpha=alpha,
+            similarity=Blend(
+                HiddenActivations(model=fitted_mlp, output_weighting="none"),
+                features=0.5,
+            ),
         )
         exp = explainer.explain_instance(X_test[0], model=fitted_mlp)
         assert len(exp.neighbors) == 3
-        # All distances should be non-negative
         for n in exp.neighbors:
             assert n.distance >= 0.0
 
@@ -670,14 +612,11 @@ class TestSklearnMLPAllHidden:
     def test_all_hidden_integration_with_case_explainer(self, iris, fitted_mlp):
         """CaseExplainer built with all_hidden returns valid explanations."""
         X_train, X_test, y_train, _ = iris
-        ext = SklearnMLPActivationExtractor(layer="all_hidden")
         explainer = CaseExplainer(
             X_train,
             y_train,
             k=5,
-            activation_extractor=ext,
-            model=fitted_mlp,
-            blend_alpha=0.0,
+            similarity=HiddenActivations(model=fitted_mlp, layer="all_hidden"),
         )
         exp = explainer.explain_instance(X_test[0], model=fitted_mlp)
         assert len(exp.neighbors) == 5
@@ -739,230 +678,66 @@ class TestDecisionTreeActivationExtractorContract:
 
 
 class TestCaseExplainerActivationsState:
-    def test_act_scaler_populated_when_extractor_set(self, iris, fitted_mlp):
+    def test_metric_ready_extractor_is_not_rescaled(self, iris, fitted_mlp):
         """Metric-ready extractors must not be standardized a second time."""
         X_train, _, y_train, _ = iris
-        ext = SklearnMLPActivationExtractor()
         explainer = CaseExplainer(
-            X_train,
-            y_train,
-            k=5,
-            activation_extractor=ext,
-            model=fitted_mlp,
-            blend_alpha=0.0,
+            X_train, y_train, k=5, similarity=HiddenActivations(model=fitted_mlp)
         )
-        assert explainer._act_scaler is None
+        assert explainer._strategy.scaler is None
 
     def test_output_weights_change_integrated_geometry(self, iris, fitted_mlp):
         """Output weighting must survive through the final k-NN index."""
         X_train, _, y_train, _ = iris
         weighted = CaseExplainer(
-            X_train,
-            y_train,
-            model=fitted_mlp,
-            activation_layer="last_hidden",
-            use_output_weights=True,
+            X_train, y_train, similarity=HiddenActivations(model=fitted_mlp)
         )
         unweighted = CaseExplainer(
             X_train,
             y_train,
-            model=fitted_mlp,
-            activation_layer="last_hidden",
-            use_output_weights=False,
+            similarity=HiddenActivations(model=fitted_mlp, output_weighting="none"),
         )
         assert not np.allclose(weighted.nn_index._fit_X, unweighted.nn_index._fit_X)
 
     def test_explain_instance_without_model_uses_predicted_class(
         self, iris, fitted_mlp
     ):
-        """
-        When activation_extractor is set and no model is passed to
-        explain_instance, it should still work as long as predicted_class
-        is supplied — the extractor is already fitted at __init__ time.
-        """
-        X_train, X_test, y_train, _ = iris
-        ext = SklearnMLPActivationExtractor()
-        explainer = CaseExplainer(
-            X_train,
-            y_train,
-            k=5,
-            activation_extractor=ext,
-            model=fitted_mlp,
-            blend_alpha=0.0,
-        )
-        # Supply predicted_class explicitly; do NOT pass model to explain_instance
-        exp = explainer.explain_instance(X_test[0], predicted_class=0)
-        assert len(exp.neighbors) == 5
-
-    def test_blend_alpha_boundary_produces_same_results_as_pure_modes(
-        self, iris, fitted_mlp
-    ):
-        """blend_alpha=0.0 and blend_alpha=1.0 must match their pure counterparts."""
-        X_train, X_test, y_train, _ = iris
-
-        # blend_alpha=1.0 with extractor should match pure-feature explainer
-        ext_blend1 = SklearnMLPActivationExtractor(use_output_weights=False)
-        blend1 = CaseExplainer(
-            X_train,
-            y_train,
-            k=5,
-            activation_extractor=ext_blend1,
-            model=fitted_mlp,
-            blend_alpha=1.0,
-        )
-        feat_only = CaseExplainer(X_train, y_train, k=5)
-
-        blend1_ids = sorted(
-            n.index
-            for n in blend1.explain_instance(X_test[0], predicted_class=0).neighbors
-        )
-        feat_ids = sorted(
-            n.index
-            for n in feat_only.explain_instance(X_test[0], predicted_class=0).neighbors
-        )
-        assert (
-            blend1_ids == feat_ids
-        ), "blend_alpha=1.0 should select the same neighbors as pure feature mode"
-
-
-class TestActivationLayerConvenienceParam:
-    """Tests for the activation_layer / use_output_weights shorthand on CaseExplainer."""
-
-    def test_activation_layer_creates_extractor(self, iris, fitted_mlp):
-        """activation_layer shorthand should produce the same explainer as explicit extractor."""
-        X_train, _, y_train, _ = iris
-        with pytest.warns(DeprecationWarning, match="version 0.3"):
-            explainer = CaseExplainer(
-                X_train,
-                y_train,
-                k=5,
-                activation_layer="last_hidden",
-                model=fitted_mlp,
-            )
-        assert explainer.activation_extractor is not None
-
-    def test_explicit_extractor_emits_deprecation_warning(self, iris, fitted_mlp):
-        X_train, _, y_train, _ = iris
-        with pytest.warns(DeprecationWarning, match="version 0.3"):
-            CaseExplainer(
-                X_train,
-                y_train,
-                activation_extractor=SklearnMLPActivationExtractor(),
-                model=fitted_mlp,
-            )
-
-    def test_legacy_removal_contract_is_complete(self):
-        assert LEGACY_ACTIVATION_REMOVAL_VERSION == "0.3.0"
-        assert LEGACY_ACTIVATION_PARAMETERS == (
-            "activation_extractor",
-            "activation_layer",
-            "blend_alpha",
-            "use_output_weights",
-        )
-
-    def test_activation_layer_matches_explicit_extractor(self, iris, fitted_mlp):
-        """Convenience param must yield identical neighbors to explicit extractor."""
-        X_train, X_test, y_train, _ = iris
-        ext = SklearnMLPActivationExtractor(
-            layer="last_hidden", use_output_weights=True
-        )
-        explicit = CaseExplainer(
-            X_train,
-            y_train,
-            k=5,
-            activation_extractor=ext,
-            model=fitted_mlp,
-        )
-        shorthand = CaseExplainer(
-            X_train,
-            y_train,
-            k=5,
-            activation_layer="last_hidden",
-            use_output_weights=True,
-            model=fitted_mlp,
-        )
-        exp_e = explicit.explain_instance(X_test[0], predicted_class=0)
-        exp_s = shorthand.explain_instance(X_test[0], predicted_class=0)
-        assert sorted(n.index for n in exp_e.neighbors) == sorted(
-            n.index for n in exp_s.neighbors
-        )
-
-    def test_activation_layer_all_hidden(self, iris, fitted_mlp):
-        """all_hidden mode should work via activation_layer shorthand."""
         X_train, X_test, y_train, _ = iris
         explainer = CaseExplainer(
-            X_train,
-            y_train,
-            k=5,
-            activation_layer="all_hidden",
-            model=fitted_mlp,
+            X_train, y_train, k=5, similarity=HiddenActivations(model=fitted_mlp)
         )
         exp = explainer.explain_instance(X_test[0], predicted_class=0)
         assert len(exp.neighbors) == 5
 
-    def test_activation_layer_and_extractor_raises(self, iris, fitted_mlp):
-        """Providing both activation_layer and activation_extractor must raise ValueError."""
-        X_train, _, y_train, _ = iris
-        ext = SklearnMLPActivationExtractor()
-        with pytest.raises(ValueError, match="not both"):
-            CaseExplainer(
-                X_train,
-                y_train,
-                k=5,
-                activation_extractor=ext,
-                activation_layer="last_hidden",
-                model=fitted_mlp,
-            )
 
-    def test_activation_layer_without_model_raises(self, iris):
-        """activation_layer without model must raise ValueError."""
+class TestRemovedParameters:
+    """Constructor parameters removed in 0.3.0 raise a TypeError with a hint."""
+
+    @pytest.mark.parametrize("name", sorted(REMOVED_PARAMETERS))
+    def test_removed_parameter_raises_type_error(self, iris, name):
         X_train, _, y_train, _ = iris
-        with pytest.raises(ValueError, match="model must be provided"):
-            CaseExplainer(
-                X_train,
-                y_train,
-                k=5,
-                activation_layer="last_hidden",
-            )
+        with pytest.raises(TypeError, match=f"{name}.*removed in 0.3.0.*similarity="):
+            CaseExplainer(X_train, y_train, **{name: object()})
+
+    def test_unknown_keyword_still_reports_unexpected_argument(self, iris):
+        X_train, _, y_train, _ = iris
+        with pytest.raises(TypeError, match="unexpected keyword argument 'bogus'"):
+            CaseExplainer(X_train, y_train, bogus=1)
+
+    def test_retrieval_classes_are_gone(self):
+        import case_explainer
+
+        for name in (
+            "HiddenActivationRetrieval",
+            "CustomActivationRetrieval",
+            "TreeLeafRetrieval",
+            "ForestProximityRetrieval",
+        ):
+            assert not hasattr(case_explainer, name)
+            assert not hasattr(case_explainer.activations, name)
 
 
 class TestSimilarityStrategies:
-    def test_custom_configuration_matches_legacy_extractor(self, iris):
-        X_train, X_test, y_train, _ = iris
-        model = object()
-        configured = CaseExplainer(
-            X_train,
-            y_train,
-            similarity=Blend(
-                CustomActivations(
-                    model=model,
-                    extractor=CallableActivationExtractor(lambda _, X: X[:, :2]),
-                ),
-                features=0.25,
-            ),
-        )
-        with pytest.warns(DeprecationWarning):
-            legacy = CaseExplainer(
-                X_train,
-                y_train,
-                model=model,
-                activation_extractor=CallableActivationExtractor(lambda _, X: X[:, :2]),
-                blend_alpha=0.25,
-            )
-        configured_indices = [
-            neighbor.index
-            for neighbor in configured.explain_instance(
-                X_test[0], predicted_class=0
-            ).neighbors
-        ]
-        legacy_indices = [
-            neighbor.index
-            for neighbor in legacy.explain_instance(
-                X_test[0], predicted_class=0
-            ).neighbors
-        ]
-        assert configured_indices == legacy_indices
-
     def test_custom_configuration_validates_extractor(self, iris):
         X_train, _, y_train, _ = iris
         with pytest.raises(TypeError, match="ActivationExtractor"):
@@ -971,25 +746,6 @@ class TestSimilarityStrategies:
                 y_train,
                 similarity=CustomActivations(model=object(), extractor=object()),
             )
-
-    def test_hidden_configuration_matches_legacy_api(self, iris, fitted_mlp):
-        X_train, X_test, y_train, _ = iris
-        configured = CaseExplainer(
-            X_train,
-            y_train,
-            similarity=HiddenActivations(model=fitted_mlp),
-        )
-        legacy = CaseExplainer(
-            X_train,
-            y_train,
-            model=fitted_mlp,
-            activation_layer="last_hidden",
-        )
-        configured_exp = configured.explain_instance(X_test[0])
-        legacy_exp = legacy.explain_instance(X_test[0])
-        assert [n.index for n in configured_exp.neighbors] == [
-            n.index for n in legacy_exp.neighbors
-        ]
 
     def test_string_shorthand_matches_strategy_object(self, iris, fitted_mlp):
         X_train, X_test, y_train, _ = iris
@@ -1081,16 +837,6 @@ class TestSimilarityStrategies:
         with pytest.raises(ValueError, match="output_weighting must be"):
             HiddenActivations(model=fitted_mlp, output_weighting="bogus")
 
-    def test_similarity_and_retrieval_conflict(self, iris, fitted_mlp):
-        X_train, _, y_train, _ = iris
-        with pytest.raises(ValueError, match="either similarity= or retrieval="):
-            CaseExplainer(
-                X_train,
-                y_train,
-                similarity=HiddenActivations(model=fitted_mlp),
-                retrieval=HiddenActivationRetrieval(model=fitted_mlp),
-            )
-
     def test_constructor_model_is_prediction_default(self, iris, fitted_mlp):
         X_train, X_test, y_train, _ = iris
         explainer = CaseExplainer(
@@ -1147,16 +893,6 @@ class TestSimilarityStrategies:
         explanation = explainer.explain_instance(np.array([0.25]))
         assert len(explanation.neighbors) == 4
 
-    def test_similarity_rejects_legacy_activation_parameters(self, iris, fitted_mlp):
-        X_train, _, y_train, _ = iris
-        with pytest.raises(ValueError, match="cannot be combined"):
-            CaseExplainer(
-                X_train,
-                y_train,
-                similarity=HiddenActivations(model=fitted_mlp),
-                activation_layer="last_hidden",
-            )
-
     def test_predicted_class_weighting_selects_class_index(self, iris, fitted_mlp):
         X_train, X_test, y_train, _ = iris
         explainer = CaseExplainer(
@@ -1166,7 +902,7 @@ class TestSimilarityStrategies:
                 model=fitted_mlp, output_weighting="predicted_class"
             ),
         )
-        assert set(explainer._class_nn_indexes) == set(fitted_mlp.classes_)
+        assert set(explainer._strategy.indexes) == set(fitted_mlp.classes_)
         class_zero = explainer.explain_instance(
             X_test[0], predicted_class=int(fitted_mlp.classes_[0])
         )
@@ -1191,10 +927,10 @@ class TestSimilarityStrategies:
         )
         weights = [
             extractor._output_weights
-            for extractor in explainer._class_activation_extractors.values()
+            for extractor in explainer._strategy.extractors.values()
         ]
         np.testing.assert_allclose(weights[0], weights[1])
-        indexes = list(explainer._class_nn_indexes.values())
+        indexes = list(explainer._strategy.indexes.values())
         assert indexes[0] is indexes[1]
 
     def test_predicted_class_weighting_maps_non_contiguous_labels(self, iris):
@@ -1279,40 +1015,3 @@ class TestSimilarityStrategies:
                 y_train,
                 similarity=strategy_type(model=model),
             )
-
-
-class TestLegacyRetrievalDeprecation:
-    """The deprecated ``retrieval=`` parameter still works but warns."""
-
-    def test_deprecated_class_import_warns(self):
-        import case_explainer
-
-        with pytest.warns(DeprecationWarning, match="HiddenActivationRetrieval"):
-            cls = case_explainer.HiddenActivationRetrieval
-        assert cls is HiddenActivationRetrieval
-
-    def test_retrieval_param_emits_deprecation_warning(self, iris, fitted_mlp):
-        X_train, _, y_train, _ = iris
-        with pytest.warns(DeprecationWarning, match="retrieval= parameter"):
-            CaseExplainer(
-                X_train,
-                y_train,
-                retrieval=HiddenActivationRetrieval(model=fitted_mlp),
-            )
-
-    def test_retrieval_matches_similarity(self, iris, fitted_mlp):
-        X_train, X_test, y_train, _ = iris
-        with pytest.warns(DeprecationWarning):
-            legacy = CaseExplainer(
-                X_train,
-                y_train,
-                retrieval=HiddenActivationRetrieval(model=fitted_mlp),
-            )
-        modern = CaseExplainer(
-            X_train,
-            y_train,
-            similarity=HiddenActivations(model=fitted_mlp),
-        )
-        assert [n.index for n in legacy.explain_instance(X_test[0]).neighbors] == [
-            n.index for n in modern.explain_instance(X_test[0]).neighbors
-        ]

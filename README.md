@@ -21,11 +21,11 @@ You get: *"This sample is classified as X because it resembles these 5 training 
 
 - **Model-agnostic**: Works with any classifier (sklearn, XGBoost, neural networks, etc.)
 - **Correspondence metric**: Quantifies agreement between prediction and neighbors
-- **Multiple indexing strategies**: K-D Tree, Ball Tree, or brute force
+- **Pluggable k-NN backend**: sklearn's `auto`, `kd_tree`, `ball_tree`, or `brute` via `algorithm=`
 - **Automatic scaling**: Optional feature standardization
 - **Metadata tracking**: Attach provenance data to training samples
 - **Sklearn-compatible API**: Familiar interface for ML practitioners
-- **Batch explanations**: Explain many predictions in one call
+- **Batch explanations**: Vectorized `explain_batch` with one model call and one k-NN query per batch
 - **Model-informed similarity**: Retrieve cases from a neural network's learned representation or a decision tree's matching leaf
 
 ## Installation
@@ -129,8 +129,11 @@ The `+1` offset in the denominator prevents division by zero when a test sample 
 
 *Note: These thresholds are illustrative examples. Appropriate thresholds should be determined empirically for each specific domain and use case based on validation studies.*
 
-### Indexing Strategies
+### k-NN Backend
 
+The `algorithm=` argument is passed to sklearn's `NearestNeighbors`:
+
+- **`auto`** (default): Let sklearn choose based on the data
 - **`kd_tree`**: Fast for low-dimensional data (<20 features)
 - **`ball_tree`**: Better for high-dimensional data
 - **`brute`**: Exact search for small datasets (<10k samples)
@@ -197,11 +200,10 @@ If the MLP was trained on transformed inputs, pass its fitted transformer as
 `input_transform`. The explainer applies it both when extracting activations
 and when asking the model for a prediction.
 
-The legacy `activation_extractor`, `activation_layer`, `use_output_weights`,
-and `blend_alpha` constructor path, along with the `retrieval=` parameter,
-remains supported but emits `DeprecationWarning`. Prefer `similarity=` with the
-strategy classes (`HiddenActivations`, `CustomActivations`, `TreeLeaf`,
-`ForestProximity`, `Blend`).
+Version 0.3.0 removed the 0.2.x `activation_extractor`, `activation_layer`,
+`use_output_weights`, `blend_alpha`, and `retrieval=` constructor parameters.
+Passing one raises `TypeError` with the equivalent `similarity=` strategy; see
+the [migration guide](https://paulwhitten.github.io/case-explainer/migration.html).
 
 For sklearn random forests, use shared-leaf proximity rather than treating
 leaf identifiers as numeric coordinates:
@@ -233,15 +235,29 @@ same. Use feature retrieval when observed attributes define the comparison you
 want to defend. Use model-informed retrieval when the model's internal
 partitioning or representation is the relevant basis for precedent.
 
+Every explanation records where its neighbors came from:
+`explanation.retrieval_space` (for example `"features"`, `"activations"`,
+`"hybrid(features=0.30)"`, `"tree_leaf"`, `"forest_proximity"`),
+`explanation.distance_metric`, and `explanation.distance_scale`. They appear in
+`summary()` and `to_dict()`, so the meaning of a neighbor's distance travels
+with the explanation.
+
 Neighbor distances are reported in the retrieval space that produced them, so
 their scale differs between modes: standardized feature distances are
 typically larger than hidden-activation distances, and forest proximity
 distances lie in `[0, 1]`. Because correspondence weights neighbors by
-`1 / (distance + 1)^3`, correspondence values are comparable within one
-retrieval space but not across spaces. The `metric=` constructor argument
-applies to feature, activation, and blended retrieval; tree-leaf retrieval
-always orders same-leaf cases by Euclidean distance in standardized feature
-space, and forest proximity defines its own distance.
+`1 / (distance + 1)^3`, raw correspondence values are comparable within one
+retrieval space but not across spaces. To compare across spaces, pass
+`distance_normalization="median_nn"`: every distance is divided by the median
+distance from a training case to its nearest distinct training case in that
+space (stored as `explainer.distance_scale_`), so `1.0` means "as far as a
+typical training case is from its closest distinct neighbor". Neighbor
+selection is unchanged.
+
+The `metric=` constructor argument applies to feature, activation, blended, and
+tree-leaf retrieval (tree-leaf uses it to order same-leaf cases in standardized
+feature space). Forest proximity defines its own distance and rejects any other
+`metric`.
 
 ## Examples
 
@@ -336,13 +352,16 @@ explainer = CaseExplainer(
     feature_names=None,         # Optional feature names
     class_names=None,           # Optional class names {0: 'cat', 1: 'dog'}
     algorithm='kd_tree',        # k-NN algorithm: 'auto', 'kd_tree', 'ball_tree', 'brute'
-    metric='euclidean',         # Distance metric for feature/activation retrieval
+    metric='euclidean',         # Distance metric (not for ForestProximity)
     scale_data=True,            # Standardize features
     class_weights=None,         # Optional per-class weights for correspondence
     metadata=None,              # Optional provenance data
     # Retrieval space: None/'features', or HiddenActivations(...), TreeLeaf(...),
     # ForestProximity(...), Blend(...)
     similarity=None,
+    model=None,                 # Prediction model for feature-space retrieval
+    correspondence_thresholds=(0.70, 0.85),  # (medium, high) cut points
+    distance_normalization=None,             # or "median_nn"
 )
 ```
 
@@ -374,6 +393,9 @@ explanations = explainer.explain_batch(
 ```python
 explanation.correspondence          # Correspondence score [0, 1]
 explanation.correspondence_interpretation  # 'high', 'medium', 'low'
+explanation.retrieval_space         # 'features', 'activations', 'tree_leaf', ...
+explanation.distance_metric         # e.g. 'euclidean', 'shared_leaf_fraction'
+explanation.distance_scale          # 1.0 unless distances were normalized
 explanation.neighbors               # List of Neighbor objects
 explanation.predicted_class         # Predicted class
 explanation.is_correct()            # True if prediction matches label
@@ -408,6 +430,65 @@ explanation.plot()                  # Visualize (bar plot)
 - See `benchmark.py` for full results across 7 datasets
 
 *Note: Correspondence measures neighbor agreement, not prediction quality. High correspondence with incorrect predictions indicates the model has learned incorrect patterns in the training data.*
+
+The figures above come from the original feature-space pipeline. The table
+below re-runs the reference domains in every retrieval space with 0.3.0.
+
+### Retrieval Spaces Compared
+
+Produced by `validate_similarity_modes.py` (70/30 stratified split,
+`random_state=42`, k=5; hardware trojan explains a random 2,000-sample test
+subset). "Mean corr." is the mean correspondence over the explained test
+samples, raw and with `distance_normalization="median_nn"`. "Correct /
+incorrect" is the normalized mean correspondence split by whether the model's
+prediction was right. "Corr. AUC" is the ROC AUC of correspondence as a
+predictor of a correct prediction. Timings are single-run batch times on the
+development machine. Full results, including nearest-neighbor distances and
+normalization scales, are in `benchmarks/similarity_validation.csv`.
+
+| Domain | Retrieval space | Model | Accuracy | Mean corr. (raw) | Mean corr. (normalized) | Correct / incorrect (normalized) | Corr. AUC | ms/sample |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| iris | features | random_forest | 88.9% | 92.7% | 92.8% | 97.2% / 58.3% | 0.96 | 0.63 |
+| iris | activations | mlp | 91.1% | 98.2% | 98.2% | 100.0% / 79.3% | 0.62 | 0.35 |
+| iris | activations_predicted_class | mlp | 91.1% | 97.3% | 97.3% | 99.4% / 75.7% | 0.74 | 0.08 |
+| iris | hybrid_features_0.3 | mlp | 91.1% | 98.2% | 98.2% | 100.0% / 79.5% | 0.62 | 0.05 |
+| iris | tree_leaf | decision_tree | 93.3% | 91.8% | 91.5% | 94.1% / 55.6% | 0.79 | 0.04 |
+| iris | forest_proximity | random_forest | 88.9% | 96.3% | 97.1% | 100.0% / 74.0% | 0.90 | 0.62 |
+| breast_cancer | features | random_forest | 93.6% | 92.9% | 92.9% | 96.1% / 46.0% | 0.93 | 0.11 |
+| breast_cancer | activations | mlp | 97.7% | 99.3% | 99.3% | 99.8% / 78.6% | 0.87 | 0.03 |
+| breast_cancer | activations_predicted_class | mlp | 97.7% | 99.3% | 99.3% | 99.8% / 78.6% | 0.87 | 0.04 |
+| breast_cancer | hybrid_features_0.3 | mlp | 97.7% | 98.6% | 98.6% | 99.3% / 70.1% | 0.87 | 0.03 |
+| breast_cancer | tree_leaf | decision_tree | 93.0% | 97.3% | 97.3% | 98.8% / 77.8% | 0.73 | 0.04 |
+| breast_cancer | forest_proximity | random_forest | 93.6% | 98.8% | 98.8% | 99.3% / 91.1% | 0.62 | 0.23 |
+| hardware_trojan | features | random_forest | 99.7% | 99.8% | 99.8% | 99.9% / 88.0% | 0.66 | 0.06 |
+| hardware_trojan | activations | mlp | 99.7% | 99.8% | 99.8% | 99.8% / 83.5% | 0.66 | 0.10 |
+| hardware_trojan | activations_predicted_class | mlp | 99.7% | 99.8% | 99.8% | 99.8% / 83.5% | 0.66 | 0.09 |
+| hardware_trojan | hybrid_features_0.3 | mlp | 99.7% | 99.8% | 99.8% | 99.8% / 83.3% | 0.66 | 0.08 |
+| hardware_trojan | tree_leaf | decision_tree | 99.8% | 99.8% | 99.8% | 99.8% / 96.0% | 0.60 | 1.42 |
+| hardware_trojan | forest_proximity | random_forest | 99.7% | 99.8% | 99.8% | 99.9% / 88.2% | 0.66 | 4.23 |
+
+What the table shows:
+
+- **Model-informed spaces report higher correspondence, but it is less
+  diagnostic.** Hidden-activation, tree-leaf, and forest-proximity retrieval
+  find neighbors the model already treats alike, so they agree with the
+  prediction even when it is wrong. On breast cancer, feature-space
+  correspondence separates correct from incorrect predictions with AUC 0.93,
+  forest proximity with 0.62. Feature space is the most diagnostic space on
+  every domain here.
+- **Normalization changes correspondence little in most spaces** because
+  correspondence is a ratio among the same k neighbors. It matters where raw
+  distances are far from the feature scale (forest proximity on Iris moves from
+  96.3% to 97.1%), and it makes neighbor distances readable across spaces: a
+  normalized distance of 1.0 is a typical distinct-neighbor gap in any space.
+- **Hardware trojan correspondence is near-saturated in every space.** Only
+  2,356 of the 39,871 training rows are distinct, so most test circuits have
+  exact matches in the training set and correspondence (AUC about 0.6 to 0.66)
+  says little about correctness. The useful explanation there is the identical
+  precedents themselves.
+- **Credit-card fraud was not re-run** in this table because the dataset is not
+  redistributable; `validate_similarity_modes.py` includes it automatically
+  when `creditcard.csv` is present in the project root.
 
 ## When to Use Case-Based Explainability
 
@@ -450,7 +531,8 @@ explanation.plot()                  # Visualize (bar plot)
 
 - Measures neighbor agreement, not prediction correctness or quality
 - High correspondence can occur with incorrect predictions if training data contains systematic errors
-- Thresholds for "high/medium/low" must be validated per domain
+- Thresholds for "high/medium/low" must be validated per domain (set them with `correspondence_thresholds=`)
+- Raw correspondence is not comparable across retrieval spaces because distance scales differ; use `distance_normalization="median_nn"` when comparing
 
 ### Performance Benchmark Limitations
 
@@ -492,11 +574,10 @@ Contributions welcome! Core functionality and release infrastructure are complet
 
 **Priority areas:**
 
-- Vectorized batch explanation (one k-NN query and one `predict` call per batch)
-- Consistent `metric=` handling across tree-leaf and forest retrieval
-- Distance normalization so correspondence is comparable across retrieval spaces
 - Approximate nearest neighbors (Annoy, FAISS) for large-scale data
 - Radar and parallel coordinate visualizations
+- Feature masking / redaction hooks for sensitive training data
+- Alternative distance-normalization schemes and threshold calibration studies
 
 ## Contact
 

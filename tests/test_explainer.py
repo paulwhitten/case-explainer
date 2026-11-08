@@ -46,7 +46,7 @@ def explainer_scaled(simple_data):
 def mock_model():
     """Model that predicts class 0 for everything."""
     m = MagicMock()
-    m.predict.return_value = np.array([0])
+    m.predict.side_effect = lambda X: np.zeros(len(np.atleast_2d(X)), dtype=int)
     return m
 
 
@@ -423,6 +423,10 @@ class TestGetTrainingInfo:
             "scaled",
             "has_metadata",
             "default_k",
+            "retrieval_space",
+            "distance_normalization",
+            "distance_scale",
+            "correspondence_thresholds",
         }
         assert expected == set(info.keys())
 

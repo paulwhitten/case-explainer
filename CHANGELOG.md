@@ -3,6 +3,70 @@ title: Case Explainer Changelog
 description: Release history and migration schedule for Case Explainer
 ---
 
+## 0.3.0 (2026-11-08)
+
+Breaking release that completes the ``similarity=`` migration started in 0.2.0.
+
+### Removed
+
+* The deprecated constructor parameters ``activation_extractor``,
+  ``activation_layer``, ``blend_alpha``, ``use_output_weights``, and
+  ``retrieval``. Passing any of them now raises ``TypeError`` with a migration
+  hint pointing at the equivalent ``similarity=`` strategy.
+* The ``HiddenActivationRetrieval``, ``CustomActivationRetrieval``,
+  ``TreeLeafRetrieval``, and ``ForestProximityRetrieval`` classes. The
+  ``Features``, ``HiddenActivations``, ``CustomActivations``, ``TreeLeaf``,
+  ``ForestProximity``, and ``Blend`` dataclasses are now the internal
+  representation as well as the public API; ``CaseExplainer.similarity`` holds
+  the resolved strategy.
+* The unused ``case_explainer.indexing`` module. Nearest-neighbor search has
+  always gone through sklearn's ``NearestNeighbors``; the ``algorithm=``
+  constructor argument is the supported knob.
+* ``euclidean_distance`` from the top-level namespace. It and
+  ``compute_all_distances`` remain available from ``case_explainer.metrics``.
+
+### Added
+
+* ``Explanation.retrieval_space``, ``Explanation.distance_metric``, and
+  ``Explanation.distance_scale`` record how the neighbors were retrieved, so
+  the meaning of ``Neighbor.distance`` travels with the explanation. They
+  appear in ``summary()``, ``to_dict()``, and ``repr()``;
+  ``Explanation.describe_retrieval_space()`` renders them as one line.
+  ``CaseExplainer.retrieval_space`` exposes the same label.
+* ``CaseExplainer(correspondence_thresholds=(medium, high))`` makes the
+  ``"low"`` / ``"medium"`` / ``"high"`` interpretation cut points
+  configurable. ``compute_correspondence`` accepts ``thresholds=``, and
+  ``case_explainer.metrics`` gains ``interpret_correspondence``,
+  ``validate_thresholds``, and ``DEFAULT_THRESHOLDS``.
+* ``CaseExplainer(distance_normalization="median_nn")`` divides every reported
+  distance by the median distance from a training case to its nearest distinct
+  training case in the active retrieval space (duplicates are excluded; the
+  divisor is stored as ``distance_scale_``). Neighbor selection is unchanged;
+  correspondence becomes comparable across retrieval spaces. The default
+  remains raw distances.
+* ``validate_similarity_modes.py`` re-runs the reference domains in every
+  retrieval space, with raw and normalized distances, and writes
+  ``benchmarks/similarity_validation.csv``.
+
+### Changed
+
+* ``explain_batch`` is vectorized: one scaler/extractor transform, one
+  ``predict`` call, and one k-NN query per batch (one per predicted class for
+  predicted-class activation weighting; chunked proximity for forests).
+  Results are identical to ``explain_instance``; feature-space batches run
+  about two orders of magnitude faster. ``explain_batch`` now validates the
+  lengths of ``y_test`` and ``predictions`` and the number of predictions a
+  model returns.
+* ``metric=`` is honored by ``TreeLeaf`` when ordering same-leaf cases
+  (previously always Euclidean). ``ForestProximity`` raises ``ValueError`` for
+  any ``metric`` other than the default, since it defines its own distance.
+* ``explain_instance`` accepts a single-row 2-D array as well as a 1-D sample.
+* Hybrid retrieval is labelled ``hybrid(features=0.30)`` (was
+  ``hybrid(alpha=0.30)``) in ``repr`` and ``retrieval_space``.
+* ``get_training_info()`` reports ``retrieval_space``,
+  ``distance_normalization``, ``distance_scale``, and
+  ``correspondence_thresholds``.
+
 ## 0.2.1 (2026-09-02)
 
 * Added an optional ``model`` field to ``Features`` so a prediction model can be
@@ -41,24 +105,8 @@ description: Release history and migration schedule for Case Explainer
 The deprecated parameters and classes remain functional throughout the `0.2.x`
 series. Use `similarity=` with the strategy classes for new integrations.
 
-### Removal checklist for 0.3.0
-
-* Remove the deprecated constructor parameters (`activation_extractor`,
-  `activation_layer`, `blend_alpha`, `use_output_weights`) and the
-  ``retrieval=`` parameter along with the ``*Retrieval`` classes
-* Remove tests that assert legacy and strategy-based equivalence
-* Retain a clear `TypeError` for removed parameter usage when practical
-* Update examples and API reference pages to show only ``similarity=``
-* Consider moving ``compute_correspondence`` and ``euclidean_distance`` into the
-  ``case_explainer.metrics`` submodule and dropping them from the top-level
-  ``__all__`` (breaking; batch with this release)
-* Add a migration note with before-and-after constructor examples
-* Verify the package version, runtime version, and Sphinx release stay aligned
-
-The runtime warning contract is centralized in ``case_explainer._compat`` and
-the migration examples are maintained in ``docs/migration.rst``. Complete the
-checklist only when preparing the 0.3.0 release; version 0.2.x must continue to
-accept the deprecated parameters.
+The removal checklist for these parameters was completed in 0.3.0; see that
+entry and ``docs/migration.rst`` for before-and-after examples.
 
 ## 0.1.1
 
