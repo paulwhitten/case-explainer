@@ -2,8 +2,8 @@
 
 Covers batch/instance equivalence across every retrieval space, ``metric=``
 handling in tree and forest modes, the retrieval-space fields on
-``Explanation``, configurable correspondence thresholds, and distance
-normalization.
+``Explanation``, configurable correspondence thresholds, distance
+normalization, and balanced class weights.
 """
 
 import json
@@ -16,6 +16,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.utils.class_weight import compute_class_weight
 
 import case_explainer
 from case_explainer import (
@@ -490,6 +491,128 @@ class TestDistanceNormalization:
 # ---------------------------------------------------------------------------
 # Public surface after the 0.3.0 cleanup
 # ---------------------------------------------------------------------------
+
+
+class _ConstantModel:
+    """Minimal predictor that always returns one label."""
+
+    def __init__(self, label):
+        self.label = label
+
+    def predict(self, X):
+        return np.full(len(X), self.label)
+
+
+def _imbalanced_points():
+    """100 majority and 4 minority points; the origin has 4 + 1 near neighbors."""
+    rng = np.random.RandomState(0)
+    far_majority = rng.normal(loc=20.0, scale=1.0, size=(96, 2))
+    near_majority = np.array([[1.0, 0.0], [-1.0, 0.0], [0.0, 1.0], [0.0, -1.0]])
+    near_minority = np.array([[0.7, 0.7]])
+    far_minority = np.array([[-20.0, -20.0], [-21.0, -20.0], [-20.0, -21.0]])
+    X = np.vstack([far_majority, near_majority, near_minority, far_minority])
+    y = np.array([0] * 100 + [1] * 4)
+    return X, y
+
+
+class TestClassWeights:
+    def test_default_is_unweighted(self):
+        X, y = _imbalanced_points()
+        assert CaseExplainer(X, y).class_weights == {}
+
+    def test_mapping_is_copied(self):
+        X, y = _imbalanced_points()
+        weights = {0: 1.0, 1: 5.0}
+        explainer = CaseExplainer(X, y, class_weights=weights)
+        assert explainer.class_weights == weights
+        assert explainer.class_weights is not weights
+
+    def test_balanced_matches_sklearn(self):
+        X, y = _imbalanced_points()
+        explainer = CaseExplainer(X, y, class_weights="balanced")
+        expected = compute_class_weight("balanced", classes=np.array([0, 1]), y=y)
+        assert set(explainer.class_weights) == {0, 1}
+        assert explainer.class_weights[0] == pytest.approx(expected[0])
+        assert explainer.class_weights[1] == pytest.approx(expected[1])
+
+    def test_balanced_on_balanced_data_changes_nothing(self):
+        rng = np.random.RandomState(1)
+        X = rng.normal(size=(60, 3))
+        y = np.array([0, 1, 2] * 20)
+        model = _ConstantModel(1)
+        plain = CaseExplainer(X, y, k=5, model=model)
+        balanced = CaseExplainer(X, y, k=5, model=model, class_weights="balanced")
+        assert set(balanced.class_weights.values()) == {1.0}
+        for a, b in zip(plain.explain_batch(X[:10]), balanced.explain_batch(X[:10])):
+            assert b.correspondence == pytest.approx(a.correspondence)
+
+    def test_balanced_exposes_a_minority_neighbor(self):
+        """One rare-class neighbor among five must not leave the score high."""
+        X, y = _imbalanced_points()
+        model = _ConstantModel(0)
+        query = np.zeros(2)
+        plain = CaseExplainer(X, y, k=5, model=model, scale_data=False)
+        balanced = CaseExplainer(
+            X, y, k=5, model=model, scale_data=False, class_weights="balanced"
+        )
+        unweighted = plain.explain_instance(query)
+        weighted = balanced.explain_instance(query)
+
+        assert [n.index for n in weighted.neighbors] == [
+            n.index for n in unweighted.neighbors
+        ]
+        assert sorted(n.label for n in unweighted.neighbors) == [0, 0, 0, 0, 1]
+        assert unweighted.correspondence > 0.70
+        assert unweighted.correspondence_interpretation != "low"
+        assert weighted.correspondence < 0.30
+        assert weighted.correspondence_interpretation == "low"
+
+    def test_balanced_supports_a_minority_prediction(self):
+        """A rare-class prediction backed by its rare-class neighbor scores up."""
+        X, y = _imbalanced_points()
+        model = _ConstantModel(1)
+        query = np.zeros(2)
+        plain = CaseExplainer(X, y, k=5, model=model, scale_data=False)
+        balanced = CaseExplainer(
+            X, y, k=5, model=model, scale_data=False, class_weights="balanced"
+        )
+        assert (
+            balanced.explain_instance(query).correspondence
+            > plain.explain_instance(query).correspondence
+        )
+
+    def test_balanced_with_string_labels(self):
+        X, y = _imbalanced_points()
+        labels = np.where(y == 1, "fraud", "legit")
+        explainer = CaseExplainer(
+            X,
+            labels,
+            k=5,
+            model=_ConstantModel("legit"),
+            scale_data=False,
+            class_weights="balanced",
+        )
+        assert set(explainer.class_weights) == {"fraud", "legit"}
+        assert explainer.class_weights["fraud"] > explainer.class_weights["legit"]
+        explanation = explainer.explain_instance(np.zeros(2))
+        assert explanation.correspondence_interpretation == "low"
+
+    def test_batch_matches_instance_with_balanced_weights(self):
+        X, y = _imbalanced_points()
+        explainer = CaseExplainer(
+            X, y, k=5, model=_ConstantModel(0), class_weights="balanced"
+        )
+        queries = np.array([[0.0, 0.0], [20.0, 20.0], [-20.0, -20.0]])
+        batch = explainer.explain_batch(queries)
+        for row, explanation in zip(queries, batch):
+            single = explainer.explain_instance(row)
+            assert explanation.correspondence == pytest.approx(single.correspondence)
+
+    @pytest.mark.parametrize("bad", ["auto", "Balanced", ""])
+    def test_unknown_string_raises(self, bad):
+        X, y = _imbalanced_points()
+        with pytest.raises(ValueError, match="balanced"):
+            CaseExplainer(X, y, class_weights=bad)
 
 
 class TestPublicSurface:

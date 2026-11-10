@@ -33,7 +33,12 @@ The following datasets are used in examples but loaded from sklearn or require s
 - **Breast Cancer**: `sklearn.datasets.load_breast_cancer()`
 - **Digits**: `sklearn.datasets.load_digits()`
 - **MNIST**: `sklearn.datasets.fetch_openml('mnist_784')`
-- **Credit Card Fraud**: Requires `creditcard.csv` from [Kaggle](https://www.kaggle.com/mlg-ulb/creditcardfraud)
+- **Credit Card Fraud**: Requires `creditcard.csv` in the project root, from
+  [Kaggle](https://www.kaggle.com/mlg-ulb/creditcardfraud) or the identical
+  [OpenML dataset 1597](https://www.openml.org/d/1597) (no account needed).
+  `sklearn.datasets.fetch_openml(data_id=1597)` drops the `Time` column
+  because OpenML marks it as a row id; convert the ARFF directly to keep
+  all 31 columns in the Kaggle layout.
 
 ## Adding New Datasets
 
@@ -49,4 +54,4 @@ git add assets/data/your_dataset.csv
 git commit -m "Add your_dataset to assets"
 ```
 
-Large CSV files (>100 KB) in `assets/data/` are automatically tracked by Git LFS via `.gitattributes`.
+Every CSV file in `assets/data/` is tracked by Git LFS via `.gitattributes`, whatever its size.

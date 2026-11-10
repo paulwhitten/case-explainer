@@ -274,7 +274,7 @@ class TestCallableActivationExtractor:
 
 
 # ---------------------------------------------------------------------------
-# CaseExplainer integration — activation_extractor
+# CaseExplainer integration — activation-based similarity
 # ---------------------------------------------------------------------------
 
 

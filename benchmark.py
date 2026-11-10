@@ -9,6 +9,8 @@ Tests performance across multiple datasets with varying characteristics:
 - Digits: Medium (1797 samples, 64 features) - high dimensional
 - MNIST subset: Large (10k+ samples, 784 features) - image data
 - Hardware Trojan: Very Large (56k+ samples, 5 features) - real-world
+- Credit Card Fraud: Very Large (284k samples, 30 features) - only when
+  creditcard.csv is present next to this script
 
 Metrics collected:
 - Fit time (explainer initialization)
@@ -446,7 +448,9 @@ class DatasetLoader:
         Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, List[str], str]
     ):
         """Load Credit Card Fraud dataset (large, highly imbalanced)."""
-        fraud_csv = "/home/pcw/devel/i9_developer/case-explainer/creditcard.csv"
+        fraud_csv = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "creditcard.csv"
+        )
 
         if not os.path.exists(fraud_csv):
             print(f"  Warning: Fraud detection data not found at {fraud_csv}")

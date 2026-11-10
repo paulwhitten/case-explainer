@@ -3,7 +3,13 @@ CaseExplainer
 
 The main class for creating case-based explanations.
 
-.. currentmodule:: case_explainer
+.. warning::
+
+   Explanations return real training rows, and a pickled ``CaseExplainer``
+   contains the whole training set. Use the library where the audience for the
+   explanations may see the training data. See :doc:`/data_exposure`.
+
+.. module:: case_explainer
 
 .. autoclass:: CaseExplainer
    :show-inheritance:
@@ -42,6 +48,30 @@ Similarity Strategies
     :members:
 
 .. autoclass:: Blend
+    :members:
+
+.. autodata:: SimilarityStrategy
+
+.. autoclass:: Predictor
+    :members:
+
+Activation Extractors
+^^^^^^^^^^^^^^^^^^^^^
+
+Extractors turn inputs into the vectors that activation-based retrieval
+indexes. The strategies above build them for you; use them directly with
+:class:`CustomActivations`.
+
+.. autoclass:: ActivationExtractor
+    :members:
+
+.. autoclass:: SklearnMLPActivationExtractor
+    :members:
+
+.. autoclass:: DecisionTreeActivationExtractor
+    :members:
+
+.. autoclass:: CallableActivationExtractor
     :members:
 
 Utilities
@@ -143,6 +173,71 @@ Working with Metadata
    for neighbor in explanation.neighbors:
        print(f"Neighbor {neighbor.index}: {neighbor.metadata}")
 
+   # Leave metadata out of an explanation
+   explanation = explainer.explain_instance(
+       X_test[0], k=5, model=clf, return_provenance=False
+   )
+
+Metadata travels with every explanation and with a saved explainer, so keep
+direct identifiers out of it unless the readers of the explanations may see
+them. ``return_provenance=False`` removes metadata only; feature values,
+labels, and row positions are still returned.
+
+Working with DataFrames
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Pass a ``pandas.DataFrame`` as ``X_train`` and the explainer remembers its
+column names. They become the default ``feature_names``, and they also decide
+what the model sees from then on.
+
+**Why the explainer turns arrays back into frames.** The k-NN index works on
+plain NumPy arrays, so every query is reduced to an array internally. A model
+or transformer fitted on a DataFrame, however, expects a DataFrame back: a
+scikit-learn pipeline whose ``ColumnTransformer`` selects columns by name
+raises on an array, and any estimator that recorded ``feature_names_in_``
+warns about missing feature names on every call. To keep those models working
+exactly as they do in the user's own code, the explainer rebuilds a DataFrame
+with the training columns immediately before each call to ``model.predict``,
+``model.apply`` (tree spaces), the ``input_transform`` of
+:class:`HiddenActivations`, and the built-in activation extractors. The index
+itself never changes; only the object handed to the user's estimator does.
+Explainers built from an array pass arrays through unchanged.
+
+.. code-block:: python
+
+   import pandas as pd
+   from sklearn.compose import ColumnTransformer
+   from sklearn.pipeline import make_pipeline
+
+   X_train = pd.DataFrame(X, columns=names)
+   pipeline = make_pipeline(
+       ColumnTransformer([("scaled", StandardScaler(), names[:4])]),
+       LogisticRegression(),
+   ).fit(X_train, y_train)
+
+   explainer = CaseExplainer(X_train, y_train, model=pipeline)
+   explanation = explainer.explain_instance(X_train.iloc[0])
+
+**Queries are aligned by column name.** A DataFrame query is reordered to the
+training column order before anything else happens, so column order in the
+caller's frame does not matter. A ``Series`` row (``frame.iloc[i]``) is
+treated the same way using its index labels. A frame with missing or extra
+columns raises ``ValueError`` naming the offending columns, since silently
+comparing columns in the wrong order would mislabel every feature. A frame
+whose columns are a plain ``RangeIndex`` carries no names and is taken
+positionally, as arrays are.
+
+Three cases to know:
+
+* An explainer built from an array has no column names to align to, so a
+  DataFrame query is taken positionally and its column order is not checked.
+* The rebuilt frame carries the training column names but not the original
+  per-column dtypes; values arrive as the numeric dtype of the query array.
+* A custom extractor passed through :class:`CustomActivations` always
+  receives a plain 2-D array, so existing callables (for example ones that
+  build a ``torch.tensor``) keep working. Rebuild a frame inside the callable
+  if the model needs names: ``pd.DataFrame(X, columns=explainer.feature_names)``.
+
 Configuration Options
 ---------------------
 
@@ -193,6 +288,19 @@ For imbalanced datasets, you can weight classes differently in correspondence co
        class_weights={0: 1.0, 1: 5.0}  # Weight class 1 five times more
    )
 
+   # Or derive inverse-frequency weights from y_train
+   explainer = CaseExplainer(X_train, y_train, class_weights="balanced")
+   print(explainer.class_weights)  # e.g. {0: 0.5, 1: 289.8}
+
+``"balanced"`` uses ``n_samples / (n_classes * count)``, the scikit-learn
+convention. It is recommended whenever one class is rare. Without weights, a
+majority-class prediction whose five neighbors include one or two minority
+cases still scores "medium" or "high", even though a minority neighbor is
+strong evidence on imbalanced data. Weighting does not change which neighbors
+are retrieved, only how their agreement is scored. It cannot help when every
+neighbor shares the (wrong) predicted class. :doc:`/calibration` shows how the
+labels behave on the reference domains with and without weights.
+
 Notes
 -----
 
@@ -201,13 +309,22 @@ Notes
 * Index building time is O(n log n) for tree-based methods
 * Query time is O(log n) for tree-based methods, O(n) for brute force
 * Memory usage scales with dataset size and dimensionality
-* Use ``n_jobs=-1`` to parallelize nearest neighbor search
+* ``n_jobs=-1`` (the default) parallelizes nearest-neighbor search for
+  batches. Single-sample queries always run on one thread: splitting one row
+  across workers costs about 13 ms of scheduling against under 1 ms of search
+  on a tree index, so ``explain_instance`` skips it.
 
 **Correspondence Interpretation**
 
-* **High (≥85%)**: Strong agreement with training precedent, high confidence
-* **Medium (70-85%)**: Moderate agreement, reasonable confidence
+* **High (≥85%)**: Strong agreement with training precedent
+* **Medium (70-85%)**: Moderate agreement
 * **Low (<70%)**: Weak agreement, prediction may be uncertain or unusual
+
+The labels describe agreement with the training data, not the probability that
+the prediction is correct. A wrong prediction whose neighbors all share its
+class scores 100%. The cut points are set with ``correspondence_thresholds=``.
+See :doc:`/calibration` for how often each label is right on the reference
+domains.
 
 Activation-Based Similarity
 ----------------------------
@@ -342,6 +459,9 @@ When an MLP was trained on transformed features, provide the fitted transformer:
 
 The transform is applied before activation extraction and prediction. The
 ``scale_data`` parameter remains responsible only for feature-space retrieval.
+If the explainer was built from a DataFrame, the transform receives a
+DataFrame with the training columns, so a scaler fitted on named columns works
+without warnings (see `Working with DataFrames`_).
 
 Decision-tree leaves
 ^^^^^^^^^^^^^^^^^^^^
@@ -397,18 +517,23 @@ activation, and blended retrieval pass it to sklearn's ``NearestNeighbors``;
 space. :class:`ForestProximity` defines its own distance (one minus the
 shared-leaf fraction) and raises ``ValueError`` for any other ``metric``.
 
+.. _comparing-correspondence-across-spaces:
+
 Comparing correspondence across retrieval spaces
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Neighbor distances are reported in the retrieval space that produced them.
-Standardized feature distances are typically an order of magnitude larger than
-hidden-activation distances, and forest proximities lie in ``[0, 1]``. Because
+Their scale differs between spaces and between datasets: feature and
+hidden-activation distances can differ by a factor of two or more in either
+direction, and forest proximities lie in ``[0, 1]``. Because
 correspondence weights neighbors by :math:`1/(d+1)^3`, raw correspondence
 values are comparable within one space but not across spaces.
 
 Pass ``distance_normalization="median_nn"`` to divide every distance by the
-median distance from a training case to its nearest distinct training case in
-the active space (duplicates are excluded from the estimate):
+median nearest-neighbor distance among training cases in the active space.
+Training cases that have an exact duplicate are left out of the estimate; if
+every sampled case has one, distances stay unnormalized and a warning is
+issued:
 
 .. code-block:: python
 
@@ -428,6 +553,12 @@ reported distances and therefore the correspondence weighting change. Use
 ``correspondence_thresholds=(medium, high)`` to set the interpretation cut
 points for your domain.
 
+Normalization makes distances comparable; it does not make every space equally
+informative. Model-informed spaces retrieve cases the model already treats
+alike, and on the balanced reference domains their correspondence is higher
+and separates correct from incorrect predictions less well than feature space.
+See :doc:`/calibration`.
+
 Removed parameters
 ^^^^^^^^^^^^^^^^^^
 
@@ -440,4 +571,4 @@ See Also
 --------
 
 * :class:`Explanation`: The explanation object returned by ``explain_instance``
-* :mod:`case_explainer.metrics`: Correspondence and distance metrics
+* :doc:`metrics`: Correspondence and distance metrics

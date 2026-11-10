@@ -13,8 +13,10 @@ recursive-include notebooks *.ipynb *.md
 # Include assets (data files used in examples)
 recursive-include assets *.csv *.md
 
-# Include documentation source
-recursive-include docs *.rst *.py *.md Makefile
+# Include documentation source. Markdown files are listed by name so stray
+# notes left in docs/ are never packaged.
+recursive-include docs *.rst *.py Makefile
+include docs/README.md docs/DEPLOYMENT.md
 
 # Exclude build artifacts and caches
 global-exclude __pycache__

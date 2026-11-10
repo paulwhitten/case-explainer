@@ -14,14 +14,16 @@ test set in every retrieval space the library offers:
 * decision-tree leaf (nearest overflow)
 * random-forest proximity
 
-Each space is run with raw distances and with ``distance_normalization=
-"median_nn"``; the neighbors are identical, only the correspondence changes.
+Each space is run three ways: raw distances, ``distance_normalization=
+"median_nn"``, and raw distances with ``class_weights="balanced"``. The
+neighbors are identical in all three; only the correspondence changes.
 
 Reported per row: model accuracy on the explained samples, mean
 correspondence, mean correspondence on correct and incorrect predictions, the
 area under the ROC curve of correspondence as a predictor of correctness
-(``corr_auc``), the mean distance to the nearest retrieved case, and the batch
-explanation time per sample.
+(``corr_auc``), the mean distance to the nearest retrieved case, the batch
+explanation time per sample, and for each interpretation label (high, medium,
+low) how many predictions received it and how many of those were correct.
 
 Usage::
 
@@ -35,7 +37,7 @@ import os
 import sys
 import time
 from dataclasses import asdict, dataclass, fields
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -69,6 +71,7 @@ class Row:
     domain: str
     retrieval_space: str
     normalization: str
+    class_weights: str
     n_train: int
     n_test: int
     model: str
@@ -81,6 +84,12 @@ class Row:
     mean_nearest_distance: float
     distance_scale: float
     ms_per_sample: float
+    n_high: int
+    acc_high: float
+    n_medium: int
+    acc_medium: float
+    n_low: int
+    acc_low: float
 
 
 def load_domain(name: str, max_test: Optional[int]):
@@ -109,10 +118,32 @@ def load_domain(name: str, max_test: Optional[int]):
         X, y, test_size=0.3, random_state=SEED, stratify=y
     )
     if max_test is not None and len(X_test) > max_test:
-        rng = np.random.RandomState(SEED)
-        keep = rng.choice(len(X_test), size=max_test, replace=False)
+        keep = _cap_test_subset(y_test, max_test)
         X_test, y_test = X_test[keep], y_test[keep]
     return X_train, X_test, y_train, y_test
+
+
+def _cap_test_subset(y_test: np.ndarray, max_test: int) -> np.ndarray:
+    """Choose at most ``max_test`` test rows, keeping every minority-class row.
+
+    A uniform random subset of a heavily imbalanced test set contains only a
+    handful of positives (about three frauds in 2,000 rows), which makes the
+    accuracy and the correspondence AUC meaningless. Rows from every class
+    except the largest are kept in full and the remaining budget is filled with
+    a random sample of the majority class.
+    """
+    rng = np.random.RandomState(SEED)
+    classes: np.ndarray
+    counts: np.ndarray
+    classes, counts = np.unique(y_test, return_counts=True)
+    majority = classes[int(np.argmax(counts))]
+    minority_idx = np.flatnonzero(y_test != majority)
+    majority_idx = np.flatnonzero(y_test == majority)
+    budget = max(max_test - len(minority_idx), 0)
+    if len(minority_idx) >= max_test:
+        return np.sort(rng.choice(minority_idx, size=max_test, replace=False))
+    fill = rng.choice(majority_idx, size=min(budget, len(majority_idx)), replace=False)
+    return np.sort(np.concatenate([minority_idx, fill]))
 
 
 def fit_models(X_train, y_train):
@@ -148,7 +179,18 @@ def retrieval_spaces(forest, tree, mlp, scaler):
     ]
 
 
-def evaluate(domain, space_name, similarity, model_name, normalization, data) -> Row:
+#: ``(distance_normalization, class_weights)`` variants run for every space.
+VARIANTS: List[Tuple[Optional[str], Optional[str]]] = [
+    (None, None),
+    ("median_nn", None),
+    (None, "balanced"),
+]
+LABELS = ("high", "medium", "low")
+
+
+def evaluate(
+    domain, space_name, similarity, model_name, normalization, class_weights, data
+) -> Row:
     X_train, X_test, y_train, y_test = data
     explainer = CaseExplainer(
         X_train,
@@ -156,6 +198,7 @@ def evaluate(domain, space_name, similarity, model_name, normalization, data) ->
         k=5,
         similarity=similarity,
         distance_normalization=normalization,
+        class_weights=class_weights,
     )
     start = time.perf_counter()
     explanations = explainer.explain_batch(X_test, y_test=y_test)
@@ -166,6 +209,14 @@ def evaluate(domain, space_name, similarity, model_name, normalization, data) ->
     nearest = np.array(
         [e.neighbors[0].distance if e.neighbors else np.nan for e in explanations]
     )
+    labels = np.array([e.correspondence_interpretation for e in explanations])
+    by_label = {}
+    for label in LABELS:
+        mask = labels == label
+        by_label[f"n_{label}"] = int(mask.sum())
+        by_label[f"acc_{label}"] = (
+            float(correct[mask].mean()) if mask.any() else float("nan")
+        )
     incorrect = ~correct
     if 0 < incorrect.sum() < len(correct):
         auc = float(roc_auc_score(correct, correspondence))
@@ -175,6 +226,7 @@ def evaluate(domain, space_name, similarity, model_name, normalization, data) ->
         domain=domain,
         retrieval_space=space_name,
         normalization=normalization or "raw",
+        class_weights=class_weights or "none",
         n_train=len(X_train),
         n_test=len(X_test),
         model=model_name,
@@ -189,6 +241,7 @@ def evaluate(domain, space_name, similarity, model_name, normalization, data) ->
         mean_nearest_distance=float(np.nanmean(nearest)),
         distance_scale=float(explainer.distance_scale_),
         ms_per_sample=1000.0 * elapsed / len(X_test),
+        **by_label,
     )
 
 
@@ -199,7 +252,11 @@ def markdown_table(rows: List[Row]) -> str:
         "Corr. AUC | ms/sample |"
     )
     lines = [header, "|" + " --- |" * 9]
-    by_key = {(r.domain, r.retrieval_space, r.normalization): r for r in rows}
+    by_key = {
+        (r.domain, r.retrieval_space, r.normalization): r
+        for r in rows
+        if r.class_weights == "none"
+    }
     seen = []
     for r in rows:
         key = (r.domain, r.retrieval_space)
@@ -219,6 +276,37 @@ def markdown_table(rows: List[Row]) -> str:
             f"{raw.mean_correspondence:.1%} | {norm.mean_correspondence:.1%} | "
             f"{norm.correspondence_correct:.1%} / {incorrect} | {auc} | "
             f"{raw.ms_per_sample:.2f} |"
+        )
+    return "\n".join(lines)
+
+
+def _label_cell(count: int, accuracy: float) -> str:
+    if count == 0:
+        return "0"
+    return f"{count:,} ({accuracy:.1%} correct)"
+
+
+def calibration_table(rows: List[Row], space: str = "features") -> str:
+    """Label reliability in one retrieval space, unweighted and balanced."""
+    header = (
+        "| Domain | Class weights | Mean corr. on incorrect | Corr. AUC | "
+        "Labeled high | Labeled medium | Labeled low |"
+    )
+    lines = [header, "|" + " --- |" * 7]
+    for r in rows:
+        if r.retrieval_space != space or r.normalization != "raw":
+            continue
+        incorrect = (
+            f"{r.correspondence_incorrect:.1%}"
+            if np.isfinite(r.correspondence_incorrect)
+            else "n/a"
+        )
+        auc = f"{r.corr_auc:.2f}" if np.isfinite(r.corr_auc) else "n/a"
+        lines.append(
+            f"| {r.domain} | {r.class_weights} | {incorrect} | {auc} | "
+            f"{_label_cell(r.n_high, r.acc_high)} | "
+            f"{_label_cell(r.n_medium, r.acc_medium)} | "
+            f"{_label_cell(r.n_low, r.acc_low)} |"
         )
     return "\n".join(lines)
 
@@ -255,13 +343,22 @@ def main(argv=None) -> int:
         for space_name, similarity, model_name in retrieval_spaces(
             forest, tree, mlp, scaler
         ):
-            for normalization in (None, "median_nn"):
+            for normalization, class_weights in VARIANTS:
                 row = evaluate(
-                    domain, space_name, similarity, model_name, normalization, data
+                    domain,
+                    space_name,
+                    similarity,
+                    model_name,
+                    normalization,
+                    class_weights,
+                    data,
                 )
                 rows.append(row)
+                variant = row.normalization
+                if row.class_weights != "none":
+                    variant = f"{variant}+{row.class_weights}"
                 print(
-                    f"  {space_name:28s} {row.normalization:9s} acc={row.accuracy:.3f} "
+                    f"  {space_name:28s} {variant:12s} acc={row.accuracy:.3f} "
                     f"corr={row.mean_correspondence:.3f} "
                     f"correct={row.correspondence_correct:.3f} "
                     f"incorrect={row.correspondence_incorrect:.3f} "
@@ -279,6 +376,8 @@ def main(argv=None) -> int:
     frame.to_csv(args.output, index=False, float_format="%.6g")
     print(f"\nWrote {len(rows)} rows to {args.output}\n")
     print(markdown_table(rows))
+    print("\nLabel reliability (feature space):\n")
+    print(calibration_table(rows))
     return 0
 
 

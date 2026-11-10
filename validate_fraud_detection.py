@@ -368,7 +368,7 @@ def main():
     print("\n" + "=" * 70)
     print("ANALYSIS COMPLETE")
     print("=" * 70)
-    print("\nSee FRAUD_DETECTION_CRITICAL_ANALYSIS.md for detailed findings")
+    print("\nSee docs/calibration.rst for the library's current fraud findings")
 
 
 if __name__ == "__main__":

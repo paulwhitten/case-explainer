@@ -25,8 +25,10 @@ The case-based explainability approach implemented in this package was validated
 * Whitten, P., Wolff, F., & Papachristou, C. (2024). "Explainable Hardware Trojan Detection 
   Using Case-Based Reasoning." *Journal of Electronic Testing: Theory and Applications (JETTA)*.
 
-This work demonstrated 99.9% correspondence on hardware trojan detection with 56,959 samples,
-showing the effectiveness of case-based explanations for security-critical applications.
+That work reported 99.9% correspondence on hardware trojan detection with 56,959 samples,
+using its own pipeline and test sample. The figures measured with this library's
+0.3.0 validation, including results on the trojans the model misses, are in
+:doc:`calibration`.
 
 **Theoretical Foundation**
 

@@ -115,3 +115,27 @@ Other changes to check
   ``retrieval_space``, ``distance_normalization``, ``distance_scale``, and
   ``correspondence_thresholds``. Code that asserts an exact key set needs
   updating.
+* ``class_weights`` accepts ``"balanced"`` in addition to a mapping. Any other
+  string, including the empty string, now raises ``ValueError``. On imbalanced
+  data, switching to ``class_weights="balanced"`` changes correspondence
+  scores and labels (not the retrieved neighbors); see :doc:`calibration`.
+* Arguments are validated more strictly. ``k`` must be a positive integer,
+  ``feature_names`` must have one name per feature, and labels or predictions
+  must be one value per sample. A model whose ``predict`` returns class
+  probabilities needs a wrapper that returns class labels.
+* ``HiddenActivations`` with an integer ``layer`` that names the last hidden
+  layer now applies output weighting, as ``layer="last_hidden"`` does. Pass
+  ``output_weighting="none"`` to keep the previous unweighted retrieval.
+* An explainer built from a DataFrame now passes a DataFrame with the training
+  columns to ``model.predict``, ``model.apply``, ``input_transform``, and the
+  built-in extractors, where 0.2.x passed bare arrays. Estimators fitted on a
+  DataFrame gain from this; an estimator fitted on arrays and used with a
+  DataFrame-built explainer now receives frames and may emit scikit-learn's
+  "X has feature names" warning. Build the explainer from the same kind of
+  input the model was fitted on. DataFrame queries are also reordered to the
+  training columns by name, and a frame with missing or unexpected columns
+  raises ``ValueError`` instead of being compared positionally. Custom
+  extractor callables still receive arrays.
+* The documentation no longer describes privacy-preserving features as
+  planned. Explanations and saved explainers contain training data and must be
+  handled as such; see :doc:`data_exposure`.

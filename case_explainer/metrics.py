@@ -87,7 +87,13 @@ def compute_correspondence(
         predicted_class: The predicted class label
         distance_weighted: Whether to weight by inverse cubed distance (default: True)
         class_weights: Optional weights for each class, e.g., {0: 1.0, 1: 2.0}
-                      for imbalanced datasets (default: all weights = 1.0)
+                      for imbalanced datasets (default: all weights = 1.0).
+                      Without weights a rare-class neighbor counts no more
+                      than a common-class one, so on imbalanced data a
+                      prediction that disagrees with one or two rare-class
+                      neighbors still scores high. ``CaseExplainer(
+                      class_weights="balanced")`` derives inverse-frequency
+                      weights from the training labels.
         thresholds: ``(medium, high)`` cut points for the interpretation label
                     (default: ``(0.70, 0.85)``). Thresholds are domain-dependent
                     and should be validated per use case.

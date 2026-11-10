@@ -31,6 +31,7 @@ Usage::
 
 import logging
 import numpy as np
+import pandas as pd
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Optional, Protocol, Union, runtime_checkable
@@ -48,6 +49,13 @@ class Predictor(Protocol):
 # ---------------------------------------------------------------------------
 # Public similarity strategies (preferred API)
 # ---------------------------------------------------------------------------
+
+
+def _rows_2d(X: Any) -> Any:
+    """Return ``X`` as 2-D rows, keeping a DataFrame intact for named models."""
+    if isinstance(X, pd.DataFrame):
+        return X
+    return np.atleast_2d(X)
 
 
 @dataclass(frozen=True)
@@ -83,8 +91,17 @@ class HiddenActivations:
             hidden-layer index.
         output_weighting: How to weight hidden units by their contribution to
             the output. One of ``"mean_abs"`` (default), ``"predicted_class"``,
-            or ``"none"``.
-        input_transform: Optional preprocessing applied before the forward pass.
+            or ``"none"``. Weighting uses the connections into the output
+            layer, so it applies to the last hidden layer (by name or by
+            index) and to ``"all_hidden"``. An integer index of an earlier
+            layer is retrieved with uniform weights.
+        input_transform: Optional preprocessing applied before the forward
+            pass, for a model trained on transformed inputs. It is also applied
+            before every ``predict`` call the explainer makes, including a
+            ``model=`` passed at explain time, so such a model must expect the
+            transformed inputs too. When the explainer was built from a
+            DataFrame, the transform receives a DataFrame with the training
+            columns; otherwise it receives an array.
 
     Wrap this in :class:`Blend` to mix activation space with feature space.
     """
@@ -108,7 +125,11 @@ class CustomActivations:
 
     Args:
         model: The fitted model the extractor reads activations from.
-        extractor: An :class:`ActivationExtractor` implementation.
+        extractor: An :class:`ActivationExtractor` implementation. The
+            explainer fits this object in place, so give each explainer its
+            own extractor instead of sharing one between explainers. A
+            :class:`CallableActivationExtractor` always receives a plain 2-D
+            array, even when the explainer was built from a DataFrame.
     """
 
     model: Any
@@ -131,6 +152,12 @@ class TreeLeaf:
     model: Any
     overflow: str = "truncate"
     within_leaf: str = "feature_distance"
+
+    def __post_init__(self) -> None:
+        if self.overflow not in ("truncate", "nearest"):
+            raise ValueError("overflow must be 'truncate' or 'nearest'")
+        if self.within_leaf != "feature_distance":
+            raise ValueError("within_leaf must be 'feature_distance'")
 
 
 @dataclass(frozen=True)
@@ -347,7 +374,12 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
             raw_activations = self._forward_to_hidden(X_model)
             self._activation_scaler = StandardScaler().fit(raw_activations)
 
-        if self.use_output_weights and self.layer == "last_hidden":
+        # An integer index that names the last hidden layer is the same layer
+        # as "last_hidden" and gets the same output weighting.
+        is_last_hidden = self.layer == "last_hidden" or (
+            isinstance(self.layer, int) and self.layer == model.n_layers_ - 3
+        )
+        if self.use_output_weights and is_last_hidden:
             # coefs_[-1] shape: (n_hidden_last, n_outputs)
             # Convert output connections to one importance value per hidden unit.
             output_coefs = model.coefs_[-1]
@@ -370,8 +402,9 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
             # Output-weight scaling requires last_hidden; defer to transform()
             if self.use_output_weights and isinstance(self.layer, int):
                 logger.warning(
-                    "use_output_weights=True is only applied to the last hidden layer. "
-                    "Using uniform weights for layer=%r.",
+                    "Output weighting is only defined for the last hidden layer "
+                    "(or layer='all_hidden'); layer=%r is an earlier layer, so "
+                    "uniform weights are used.",
                     self.layer,
                 )
             # Lazy: shape is determined by the actual activation output
@@ -457,8 +490,14 @@ class SklearnMLPActivationExtractor(ActivationExtractor):
         return True
 
     def _prepare_input(self, X: np.ndarray) -> np.ndarray:
-        """Apply optional model preprocessing and return a dense 2D array."""
-        X = np.atleast_2d(X)
+        """Apply optional model preprocessing and return a dense 2D array.
+
+        A DataFrame is handed to ``input_transform`` as a DataFrame, so a
+        transform fitted on named columns keeps working; the forward pass
+        itself runs on a plain float array.
+        """
+        if not isinstance(X, pd.DataFrame):
+            X = np.atleast_2d(X)
         if self.input_transform is not None:
             transform = getattr(self.input_transform, "transform", self.input_transform)
             if not callable(transform):
@@ -591,7 +630,9 @@ class DecisionTreeActivationExtractor(ActivationExtractor):
         self._validate(model)
         self._model = model
 
-        leaf_ids = model.apply(np.atleast_2d(X))  # (n_samples,) or (n_samples, n_trees)
+        # (n_samples,) or (n_samples, n_trees); a DataFrame is passed through
+        # unchanged so a tree fitted on named columns does not warn.
+        leaf_ids = model.apply(_rows_2d(X))
         self._is_forest = leaf_ids.ndim == 2
 
         if self._is_forest:
@@ -637,8 +678,7 @@ class DecisionTreeActivationExtractor(ActivationExtractor):
     def transform(self, X: np.ndarray) -> np.ndarray:
         if self._model is None:
             raise RuntimeError("Call fit() before transform().")
-        X = np.atleast_2d(X)
-        leaf_ids = self._model.apply(X)
+        leaf_ids = self._model.apply(_rows_2d(X))
 
         if self._encoding == "one_hot":
             return self._to_one_hot(leaf_ids)
@@ -744,6 +784,9 @@ class CallableActivationExtractor(ActivationExtractor):
     def transform(self, X: np.ndarray) -> np.ndarray:
         if self._model is None:
             raise RuntimeError("Call fit() before transform().")
-        X = np.atleast_2d(X)
+        # Custom callables always receive a plain 2-D array, even when the
+        # explainer was built from a DataFrame; rebuild a frame inside ``fn``
+        # if the model needs column names.
+        X = np.atleast_2d(np.asarray(X))
         result = self._fn(self._model, X)
         return np.asarray(result, dtype=float)

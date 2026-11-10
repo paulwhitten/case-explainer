@@ -25,7 +25,8 @@ Key Features
 ------------
 
 * **Model-agnostic**: Works with any classifier (sklearn, XGBoost, neural networks, etc.)
-* **Correspondence metric**: Quantifies agreement between prediction and neighbors
+* **Correspondence metric**: Quantifies agreement between prediction and neighbors,
+  with configurable thresholds and ``class_weights="balanced"`` for imbalanced data
 * **Pluggable k-NN backend**: sklearn's ``auto``, ``kd_tree``, ``ball_tree``, or ``brute`` via ``algorithm=``
 * **Automatic scaling**: Optional feature standardization
 * **Metadata tracking**: Attach provenance data to training samples
@@ -79,16 +80,32 @@ Installation
 Performance
 -----------
 
-Validated across multiple domains (single runs on reference hardware):
+Validated across multiple domains in feature space with the 0.3.0 defaults
+(single batch runs on the development machine; the imbalanced domains are
+measured on test subsets that include every positive):
 
-* **Hardware Trojan Detection**: 99.3% average correspondence, 25.7 ms/sample
-* **Credit Card Fraud Detection**: 100% average correspondence, 36.4 ms/sample
-* **Medical Diagnosis (Breast Cancer)**: 93.3% average correspondence, 25.9 ms/sample
+* **Hardware Trojan Detection**: 99.3% mean correspondence; 99.7% on correct
+  predictions, 83.2% on incorrect ones; 0.06 ms/sample
+* **Credit Card Fraud Detection**: 99.3% mean correspondence; 99.6% on correct
+  predictions, 84.3% on incorrect ones; 0.15 ms/sample
+* **Medical Diagnosis (Breast Cancer)**: 92.9% mean correspondence; 96.2% on
+  correct predictions, 45.6% on incorrect ones; 0.11 ms/sample
 * **Scalability**: Tested up to 200k training samples
+
+On imbalanced data pass ``class_weights="balanced"``. :doc:`calibration` shows
+how the interpretation labels behave with and without it.
 
 **Note on Correspondence**: This metric measures agreement between predictions and retrieved 
 neighbors, not prediction accuracy or quality. High correspondence indicates consistency with 
 training data patterns.
+
+Data Exposure
+-------------
+
+Explanations contain real training records: feature values, labels, row
+positions, and metadata. A saved explainer contains the whole training set.
+The library has no privacy-preserving mode, so use it where the audience for
+the explanations may see the training data. See :doc:`data_exposure`.
 
 Contents
 --------
@@ -100,6 +117,13 @@ Contents
    api/explainer
    api/explanation
    api/metrics
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Guides
+
+   calibration
+   data_exposure
 
 .. toctree::
    :maxdepth: 1

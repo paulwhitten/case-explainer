@@ -46,7 +46,7 @@ Key Attributes
 
 .. attribute:: Explanation.neighbors
 
-   List of :class:`Neighbor` objects representing the k nearest training samples.
+   List of :class:`~case_explainer.explanation.Neighbor` objects representing the k nearest training samples.
 
 .. attribute:: Explanation.predicted_class
 
@@ -94,11 +94,18 @@ Key Attributes
 
 .. attribute:: Neighbor.features
 
-   Feature values of the neighbor.
+   The complete, unscaled feature values of the training row.
 
 .. attribute:: Neighbor.metadata
 
-   Optional metadata dictionary for this training sample.
+   Metadata dictionary for this training sample. Empty when no metadata was
+   supplied or the explanation was requested with ``return_provenance=False``.
+
+.. note::
+
+   A neighbor is a real training record. Anyone who can read an explanation,
+   its summary, its plot, or its exported dictionary can read the training
+   rows in it. See :doc:`/data_exposure`.
 
 Example Usage
 -------------
@@ -164,7 +171,16 @@ Exporting Explanations
    # - predicted_class: int
    # - true_class: int or None
    # - is_correct: bool or None
-   # - neighbors: list of dicts with index, distance, label, features
+   # - predicted_class_name, true_class_name: display names
+   # - test_index: position of the query in its batch, or None
+   # - test_sample: the query's feature values
+   # - neighbors: list of dicts with index, distance, label, label_name,
+   #   features, metadata
+   # - feature_names
+
+The exported file contains the query and the full feature values and metadata
+of each retrieved training row. Store it under the same controls as the
+training data.
 
 Generating Summaries
 ^^^^^^^^^^^^^^^^^^^^
@@ -175,33 +191,44 @@ Generating Summaries
    summary = explanation.summary()
    print(summary)
    
-   # Example output:
-   # Explanation for test sample:
-   #   Predicted class: 1
-   #   True class: 1 (CORRECT)
-   #   Correspondence: 94.3% (high)
-   #   Retrieval space: features (euclidean)
+   # Example output (k=3, with class names and metadata):
+   # ============================================================
+   # CASE-BASED EXPLANATION
+   # ============================================================
+   # Predicted class: malignant
+   # True class: malignant [OK]
+   # Correspondence: 100.00% (high)
+   # Retrieval space: features (euclidean)
    #
-   # Nearest neighbors:
-   #   1. Index 42, distance 0.123, label 1
-   #   2. Index 67, distance 0.234, label 1
-   #   3. Index 15, distance 0.289, label 1
-   #   4. Index 89, distance 0.345, label 0
-   #   5. Index 23, distance 0.401, label 1
+   # Nearest 3 neighbors:
+   # ------------------------------------------------------------
+   # 1. [*] Index 94: class malignant, distance 2.8589
+   #       sample_id: patient_94
+   # 2. [*] Index 97: class malignant, distance 3.4230
+   #       sample_id: patient_97
+   # 3. [*] Index 196: class malignant, distance 3.6326
+   #       sample_id: patient_196
+   # ============================================================
+
+A ``[*]`` marks a neighbor whose class matches the prediction. The summary
+lists each neighbor's row position, class, distance, and metadata; it does not
+print feature values.
 
 Visualizing Explanations
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
-   # Create bar plot of neighbor distances and labels
+   # Grouped bar plot of feature values: the test sample next to each neighbor
    explanation.plot()
-   
-   # Save plot to file
-   import matplotlib.pyplot as plt
-   explanation.plot()
-   plt.savefig('explanation.png', dpi=300, bbox_inches='tight')
-   plt.close()
+
+   # Save the plot to a file instead of showing it
+   explanation.plot(save_path='explanation.png')
+
+The plot draws the feature values of the test sample and of every retrieved
+neighbor, so it works best with a modest number of features. ``plot_type``
+accepts ``'radar'`` and ``'parallel'``, which are not implemented yet and fall
+back to the bar plot.
 
 Batch Analysis
 ^^^^^^^^^^^^^^

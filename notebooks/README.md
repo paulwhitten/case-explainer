@@ -26,12 +26,17 @@ Interactive Jupyter notebooks demonstrating case-based explainability across mul
 ### 3. Fraud Detection (`03_fraud_detection_tutorial.ipynb`)
 **Status:** ✅ Complete
 
-**Financial domain** with 284k samples, 30 features, highly imbalanced data
+**Financial domain** with 284k samples, 30 features, highly imbalanced data.
+Section 6 compares the default correspondence weighting with the recommended
+`class_weights="balanced"` on the model's missed frauds.
 
 ### 4. Hardware Trojan (`04_hardware_trojan_tutorial.ipynb`)
 **Status:** ✅ Complete
 
-**Security domain** with 56k samples, 5 features, large-scale real-world data
+**Security domain** with 56k samples, 5 features, large-scale real-world data.
+Section 6 compares the default correspondence weighting with the recommended
+`class_weights="balanced"` on a random test sample, including the extra review
+flags it produces.
 
 ## Running the Notebooks
 
@@ -42,8 +47,8 @@ Interactive Jupyter notebooks demonstrating case-based explainability across mul
 cd ..
 pip install -e .
 
-# Install Jupyter
-pip install jupyter notebook
+# Install Jupyter and the plotting library the notebooks import
+pip install jupyter notebook seaborn
 ```
 
 ### Launch Jupyter
@@ -74,9 +79,13 @@ Each tutorial follows a similar structure:
 **Case-Based Explainability:** Instead of feature importances, you get similar training examples as evidence
 
 **Correspondence:** Quantifies agreement between prediction and neighbors (0-100%)
-- High (≥85%): Strong confidence
-- Medium (70-85%): Moderate confidence  
-- Low (<70%): Uncertain prediction
+- High (≥85%): Strong agreement with the retrieved training cases
+- Medium (70-85%): Moderate agreement
+- Low (<70%): Weak agreement; the prediction deserves a second look
+
+Correspondence measures agreement with precedent, not the probability that a
+prediction is correct. On imbalanced data build the explainer with
+`class_weights="balanced"`.
 
 **Nearest Neighbors:** The k most similar training samples to the test instance
 
@@ -100,7 +109,7 @@ from case_explainer import CaseExplainer
 **Missing dataset:**
 - Iris, Wine, Breast Cancer, Digits: Built into sklearn
 - Fraud Detection: Requires `creditcard.csv` in project root
-- Hardware Trojan: Requires data in `../explainable_hw_trojan_detection_pipeline/data/processed/`
+- Hardware Trojan: Ships with the repository at `../assets/data/hardware_trojan.csv` (Git LFS)
 
 ## Contributing
 

@@ -5,10 +5,12 @@ Based on refined Method 2 (case-based) from hardware trojan detection pipeline.
 Uses sklearn's NearestNeighbors for efficient k-NN lookups with pre-built index.
 """
 
+import copy
 import logging
 import warnings
 import numpy as np
 import pandas as pd
+from collections.abc import Mapping
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 from sklearn.metrics import pairwise_distances
 from sklearn.neighbors import NearestNeighbors
@@ -44,6 +46,8 @@ _DUPLICATE_RELATIVE_TOLERANCE = 1e-6
 # Upper bound on ``n_queries * n_train * n_trees`` booleans held at once when
 # computing forest proximities in chunks (~50 MB).
 _FOREST_CHUNK_ELEMENTS = 50_000_000
+#: Upper bound on the query-by-training distance block TreeLeaf materializes.
+_TREE_LEAF_CHUNK_ELEMENTS = 20_000_000
 
 
 def _label_value(value: Any) -> Any:
@@ -107,12 +111,31 @@ def _reference_rows(n_samples: int, rng: np.random.RandomState, size: int):
     return np.sort(rng.choice(n_samples, size=size, replace=False))
 
 
+# Queries with at most this many rows run on one thread. With ``n_jobs=-1``
+# scikit-learn's tree search splits even a single row across all workers, and
+# the scheduling costs an order of magnitude more than the search itself
+# (about 13 ms against under 1 ms on a 20k-row index).
+_SERIAL_QUERY_ROWS = 1
+
+
+def _kneighbors(index: NearestNeighbors, vectors, k: int):
+    """Query ``index`` for ``k`` neighbors, serially when the query is tiny.
+
+    The serial path uses a shallow copy of the fitted index that shares its
+    tree, so no state on the shared index changes and no index is rebuilt.
+    """
+    if len(vectors) <= _SERIAL_QUERY_ROWS and index.n_jobs not in (None, 1):
+        index = copy.copy(index)
+        index.n_jobs = 1
+    return index.kneighbors(vectors, n_neighbors=k)
+
+
 def _second_neighbor_distances(index: NearestNeighbors, queries) -> np.ndarray:
     """Distance from each training query to its nearest *other* indexed point."""
     n_indexed = index.n_samples_fit_
     if n_indexed < 2 or len(queries) == 0:
         return np.empty(0)
-    distances, _ = index.kneighbors(queries, n_neighbors=2)
+    distances, _ = _kneighbors(index, queries, 2)
     return distances[:, 1]
 
 
@@ -143,7 +166,7 @@ class _FeatureSpace:
 
     def neighbors_batch(self, explainer, X, X_scaled, predicted, k):
         vectors = self.query_vectors(explainer, X, X_scaled)
-        distances, indices = self.index.kneighbors(vectors, n_neighbors=k)
+        distances, indices = _kneighbors(self.index, vectors, k)
         return list(distances), list(indices)
 
     def reference_distances(self, explainer, rng) -> np.ndarray:
@@ -169,7 +192,9 @@ class _ActivationSpace(_FeatureSpace):
             type(self.extractor).__name__,
             self.features_weight,
         )
-        raw = self.extractor.fit_transform(explainer._model, X_train)
+        raw = self.extractor.fit_transform(
+            explainer._model, explainer._model_input(X_train)
+        )
         # Built-in extractors return normalized, metric-ready coordinates.
         if getattr(self.extractor, "metric_ready", False):
             self.scaler = None
@@ -202,7 +227,7 @@ class _ActivationSpace(_FeatureSpace):
         return f"hybrid(features={self.features_weight:.2f})"
 
     def query_vectors(self, explainer, X, X_scaled) -> np.ndarray:
-        raw = self.extractor.transform(X)
+        raw = self.extractor.transform(explainer._model_input(X))
         activations = raw if self.scaler is None else self.scaler.transform(raw)
         return self._combine(X_scaled, activations)
 
@@ -220,9 +245,10 @@ class _ClassActivationSpace(_ActivationSpace):
 
     def build(self, explainer, X_train) -> None:
         model = self.hidden.model
-        if not hasattr(model, "classes_"):
+        if not hasattr(model, "classes_") or not hasattr(model, "coefs_"):
             raise TypeError(
-                "predicted_class output weighting requires an MLPClassifier"
+                "predicted_class output weighting requires a fitted sklearn "
+                f"MLPClassifier, got {type(model).__name__}"
             )
         output_count = model.coefs_[-1].shape[1]
         classes = list(model.classes_)
@@ -240,7 +266,9 @@ class _ClassActivationSpace(_ActivationSpace):
                     input_transform=self.hidden.input_transform,
                     output_class=0 if output_count == 1 else position,
                 )
-                activations = extractor.fit_transform(model, X_train)
+                activations = extractor.fit_transform(
+                    model, explainer._model_input(X_train)
+                )
                 index = explainer._fit_index(
                     self._combine(explainer.X_train_scaled, activations)
                 )
@@ -252,10 +280,12 @@ class _ClassActivationSpace(_ActivationSpace):
     def label(self, explainer) -> str:
         if self.features_weight == 0.0:
             return "activations"
+        if self.features_weight == 1.0:
+            return "features"
         return f"hybrid(features={self.features_weight:.2f})"
 
-    def _vectors_for(self, class_label, X, X_scaled) -> np.ndarray:
-        activations = self.extractors[class_label].transform(X)
+    def _vectors_for(self, explainer, class_label, X, X_scaled) -> np.ndarray:
+        activations = self.extractors[class_label].transform(explainer._model_input(X))
         return self._combine(X_scaled, activations)
 
     def neighbors_batch(self, explainer, X, X_scaled, predicted, k):
@@ -270,10 +300,8 @@ class _ClassActivationSpace(_ActivationSpace):
                 )
             groups.setdefault(class_label, []).append(row)
         for class_label, rows in groups.items():
-            vectors = self._vectors_for(class_label, X[rows], X_scaled[rows])
-            distances, indices = self.indexes[class_label].kneighbors(
-                vectors, n_neighbors=k
-            )
+            vectors = self._vectors_for(explainer, class_label, X[rows], X_scaled[rows])
+            distances, indices = _kneighbors(self.indexes[class_label], vectors, k)
             for row, dist, idx in zip(rows, distances, indices):
                 distances_out[row] = dist
                 indices_out[row] = idx
@@ -288,6 +316,7 @@ class _ClassActivationSpace(_ActivationSpace):
             if len(member_rows) == 0:
                 continue
             vectors = self._vectors_for(
+                explainer,
                 class_label,
                 explainer.X_train_original[member_rows],
                 explainer.X_train_scaled[member_rows],
@@ -317,7 +346,7 @@ class _TreeLeafSpace:
             raise ValueError("overflow must be 'truncate' or 'nearest'")
         if self.strategy.within_leaf != "feature_distance":
             raise ValueError("within_leaf must be 'feature_distance'")
-        self.training_leaves = np.asarray(model.apply(X_train))
+        self.training_leaves = np.asarray(model.apply(explainer._model_input(X_train)))
         explainer.nn_index = None
 
     def label(self, explainer) -> str:
@@ -329,36 +358,40 @@ class _TreeLeafSpace:
     def query_vectors(self, explainer, X, X_scaled):
         return None
 
-    def _feature_distances(self, explainer, X_scaled) -> np.ndarray:
-        """Pairwise distances from each query row to every training row."""
+    def _distance_rows(self, explainer, X_scaled):
+        """Yield ``(start, distances)`` blocks of shape (chunk, n_train).
+
+        Blocks are produced one at a time so memory stays bounded by the chunk
+        size instead of growing with ``n_queries * n_train``.
+        """
         n_train = explainer.n_samples
-        chunk = max(1, 20_000_000 // max(1, n_train))
-        blocks = [
-            pairwise_distances(
+        chunk = max(1, _TREE_LEAF_CHUNK_ELEMENTS // max(1, n_train))
+        for start in range(0, len(X_scaled), chunk):
+            yield start, pairwise_distances(
                 X_scaled[start : start + chunk],
                 explainer.X_train_scaled,
                 metric=explainer.metric,
             )
-            for start in range(0, len(X_scaled), chunk)
-        ]
-        return np.vstack(blocks) if blocks else np.empty((0, n_train))
 
     def neighbors_batch(self, explainer, X, X_scaled, predicted, k):
-        query_leaves = np.asarray(self.strategy.model.apply(X))
-        all_distances = self._feature_distances(explainer, X_scaled)
+        query_leaves = np.asarray(self.strategy.model.apply(explainer._model_input(X)))
         distances_out, indices_out = [], []
-        for query_leaf, feature_distances in zip(query_leaves, all_distances):
-            same_leaf = np.flatnonzero(self.training_leaves == query_leaf)
-            same_leaf = same_leaf[
-                np.argsort(feature_distances[same_leaf], kind="stable")
-            ]
-            indices = same_leaf[:k]
-            if len(indices) < k and self.strategy.overflow == "nearest":
-                outside = np.flatnonzero(self.training_leaves != query_leaf)
-                outside = outside[np.argsort(feature_distances[outside], kind="stable")]
-                indices = np.concatenate([indices, outside[: k - len(indices)]])
-            distances_out.append(feature_distances[indices])
-            indices_out.append(indices)
+        for start, block in self._distance_rows(explainer, X_scaled):
+            for offset, feature_distances in enumerate(block):
+                query_leaf = query_leaves[start + offset]
+                same_leaf = np.flatnonzero(self.training_leaves == query_leaf)
+                same_leaf = same_leaf[
+                    np.argsort(feature_distances[same_leaf], kind="stable")
+                ]
+                indices = same_leaf[:k]
+                if len(indices) < k and self.strategy.overflow == "nearest":
+                    outside = np.flatnonzero(self.training_leaves != query_leaf)
+                    outside = outside[
+                        np.argsort(feature_distances[outside], kind="stable")
+                    ]
+                    indices = np.concatenate([indices, outside[: k - len(indices)]])
+                distances_out.append(feature_distances[indices])
+                indices_out.append(indices)
         return distances_out, indices_out
 
     def reference_distances(self, explainer, rng) -> np.ndarray:
@@ -390,7 +423,7 @@ class _ForestProximitySpace:
                 f"fraction) and ignores metric=; got metric={explainer.metric!r}. "
                 "Leave metric at its default."
             )
-        self.training_leaves = np.asarray(model.apply(X_train))
+        self.training_leaves = np.asarray(model.apply(explainer._model_input(X_train)))
         explainer.nn_index = None
 
     def label(self, explainer) -> str:
@@ -402,9 +435,9 @@ class _ForestProximitySpace:
     def query_vectors(self, explainer, X, X_scaled):
         return None
 
-    def _distance_rows(self, X):
+    def _distance_rows(self, explainer, X):
         """Yield ``(start, distances)`` blocks of shape (chunk, n_train)."""
-        query_leaves = np.asarray(self.strategy.model.apply(X))
+        query_leaves = np.asarray(self.strategy.model.apply(explainer._model_input(X)))
         n_train, n_trees = self.training_leaves.shape
         chunk = max(1, _FOREST_CHUNK_ELEMENTS // max(1, n_train * n_trees))
         for start in range(0, len(X), chunk):
@@ -416,7 +449,7 @@ class _ForestProximitySpace:
 
     def neighbors_batch(self, explainer, X, X_scaled, predicted, k):
         distances_out, indices_out = [], []
-        for _, block in self._distance_rows(X):
+        for _, block in self._distance_rows(explainer, X):
             for row in block:
                 indices = np.argsort(row, kind="stable")[:k]
                 distances_out.append(row[indices])
@@ -428,12 +461,192 @@ class _ForestProximitySpace:
             return np.empty(0)
         rows = _reference_rows(explainer.n_samples, rng, _FOREST_REFERENCE_SAMPLE_SIZE)
         nearest = []
-        for start, block in self._distance_rows(explainer.X_train_original[rows]):
+        for start, block in self._distance_rows(
+            explainer, explainer.X_train_original[rows]
+        ):
             block = block.copy()
             own = rows[start : start + len(block)]
             block[np.arange(len(block)), own] = np.inf  # exclude self
             nearest.append(block.min(axis=1))
         return np.concatenate(nearest)
+
+
+def _as_label_array(values: Any, name: str) -> np.ndarray:
+    """Return ``values`` as a 1-D array holding one class label per sample."""
+    if isinstance(values, pd.DataFrame):
+        if values.shape[1] != 1:
+            raise ValueError(
+                f"{name} must hold one class label per sample, got a DataFrame "
+                f"with {values.shape[1]} columns"
+            )
+        values = values.iloc[:, 0]
+    array: np.ndarray = np.asarray(values)
+    if array.ndim == 2 and array.shape[1] == 1:
+        array = array[:, 0]
+    if array.ndim != 1:
+        raise ValueError(
+            f"{name} must hold one class label per sample (1-D), got shape "
+            f"{array.shape}. If these are class probabilities, pass the "
+            "predicted class labels instead."
+        )
+    return array
+
+
+def _validate_k(k: Any) -> int:
+    """Return ``k`` as a positive ``int`` or raise a clear error."""
+    if isinstance(k, bool) or not isinstance(k, (int, np.integer)):
+        raise TypeError(f"k must be a positive integer, got {k!r}")
+    if k < 1:
+        raise ValueError(f"k must be a positive integer, got {k}")
+    return int(k)
+
+
+def _normalize_metadata(metadata: Any, n_samples: int) -> Dict[Any, List[Any]]:
+    """Copy per-sample metadata into plain lists addressed by row position.
+
+    Pandas objects are read positionally (a Series that went through
+    ``train_test_split`` keeps its original index labels, which must not be
+    used for lookups) and NumPy values become Python scalars so explanations
+    stay JSON-serializable.
+    """
+    if metadata is None:
+        return {}
+    if isinstance(metadata, pd.DataFrame):
+        metadata = {column: metadata[column] for column in metadata.columns}
+    if not isinstance(metadata, Mapping):
+        raise TypeError(
+            "metadata must be a mapping from field name to per-sample values, "
+            f"or a DataFrame; got {type(metadata).__name__}"
+        )
+    normalized: Dict[Any, List[Any]] = {}
+    for key, values in metadata.items():
+        if isinstance(values, (pd.Series, pd.Index, np.ndarray)):
+            column = values.tolist()
+        else:
+            column = list(values)
+        if len(column) != n_samples:
+            raise ValueError(
+                f"Metadata '{key}' has {len(column)} items, expected {n_samples}"
+            )
+        normalized[key] = column
+    return normalized
+
+
+def _align_columns(frame: pd.DataFrame, columns: List[Any], name: str) -> pd.DataFrame:
+    """Reorder ``frame`` to the training column order, matching by name.
+
+    A frame whose columns are a plain ``RangeIndex`` carries no names and is
+    taken positionally. Any other mismatch is an error: silently comparing
+    columns in a different order would mislabel every feature.
+    """
+    labels = list(frame.columns)
+    if labels == columns or isinstance(frame.columns, pd.RangeIndex):
+        return frame
+    if len(set(labels)) != len(labels):
+        raise ValueError(f"{name} has duplicate column names")
+    wanted = set(columns)
+    missing = [c for c in columns if c not in set(labels)]
+    unexpected = [c for c in labels if c not in wanted]
+    if missing or unexpected:
+        raise ValueError(
+            f"{name} columns do not match the training columns: "
+            f"missing {missing}, unexpected {unexpected}"
+        )
+    return frame[columns]
+
+
+def _query_rows(X: Any, columns: Optional[List[Any]], name: str) -> np.ndarray:
+    """Return query features as an array, aligned by column name when possible.
+
+    ``columns`` is the training column list when the explainer was built from
+    a DataFrame, else None. A DataFrame query is reordered to match; a Series
+    is treated as a single row keyed by its index labels. Arrays are taken
+    positionally.
+    """
+    if isinstance(X, pd.Series):
+        X = X.to_frame().T
+    if isinstance(X, pd.DataFrame):
+        if columns is not None:
+            X = _align_columns(X, columns, name)
+        return X.to_numpy()
+    return np.asarray(X)
+
+
+def _normalize_class_names(class_names: Any, y_train: np.ndarray) -> Dict[Any, str]:
+    """Return class display names as a ``{label: name}`` dict.
+
+    A mapping is copied. A sequence (for example scikit-learn's
+    ``target_names``) is matched to the sorted class labels in ``y_train``.
+    """
+    if class_names is None:
+        return {}
+    if isinstance(class_names, Mapping):
+        return dict(class_names)
+    names = [_label_value(name) for name in class_names]
+    unique_labels: np.ndarray = np.unique(y_train)
+    labels = unique_labels.tolist()
+    if len(names) != len(labels):
+        raise ValueError(
+            f"class_names has {len(names)} names for {len(labels)} classes in "
+            "y_train; pass a {label: name} mapping instead"
+        )
+    return dict(zip(labels, names))
+
+
+def _resolve_class_weights(
+    class_weights: Optional[Union[Mapping, str]], y_train: np.ndarray
+) -> Dict[Any, float]:
+    """Return the per-class weight mapping used for correspondence.
+
+    ``None`` means unweighted, a mapping is copied as given, and ``"balanced"``
+    derives ``n_samples / (n_classes * count)`` from the training labels.
+    """
+    if class_weights is None:
+        return {}
+    if isinstance(class_weights, str):
+        if class_weights != "balanced":
+            raise ValueError(
+                'class_weights must be a mapping, None, or "balanced", '
+                f"got {class_weights!r}"
+            )
+        classes: np.ndarray
+        counts: np.ndarray
+        classes, counts = np.unique(np.asarray(y_train), return_counts=True)
+        total = float(counts.sum())
+        return {
+            label: total / (len(classes) * count)
+            for label, count in zip(classes.tolist(), counts.tolist())
+        }
+    if not isinstance(class_weights, Mapping):
+        raise TypeError(
+            'class_weights must be a mapping, None, or "balanced", '
+            f"got {type(class_weights).__name__}"
+        )
+    weights = dict(class_weights)
+    for label, weight in weights.items():
+        valid = (
+            isinstance(weight, (int, float, np.integer, np.floating))
+            and not isinstance(weight, bool)
+            and np.isfinite(weight)
+            and weight >= 0
+        )
+        if not valid:
+            raise ValueError(
+                f"class_weights[{label!r}] must be a non-negative finite number, "
+                f"got {weight!r}"
+            )
+    known_labels: np.ndarray = np.unique(np.asarray(y_train))
+    known = set(known_labels.tolist())
+    unknown = [label for label in weights if _label_value(label) not in known]
+    if unknown:
+        warnings.warn(
+            f"class_weights has entries for labels that do not occur in y_train "
+            f"({unknown!r}); they have no effect. Check the label type, for "
+            "example 1 versus '1'.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return weights
 
 
 class CaseExplainer:
@@ -468,7 +681,7 @@ class CaseExplainer:
         metric: str = "euclidean",
         algorithm: str = "auto",
         scale_data: bool = True,
-        class_weights: Optional[Dict[Any, float]] = None,
+        class_weights: Optional[Union[Dict[Any, float], str]] = None,
         metadata: Optional[Dict[str, List]] = None,
         n_jobs: int = -1,
         similarity: Optional[Union[str, SimilarityStrategy]] = None,
@@ -481,11 +694,22 @@ class CaseExplainer:
         Initialize CaseExplainer with training data and build k-NN index.
 
         Args:
-            X_train: Training features (n_samples, n_features)
-            y_train: Training labels (n_samples,)
-            k: Number of nearest neighbors for explanations (default: 5)
-            feature_names: Names of features (optional)
-            class_names: Mapping from class labels to names (optional)
+            X_train: Training features (n_samples, n_features), as a dense
+                array or DataFrame. The index is built on a plain array, but
+                the column names of a DataFrame are remembered: later
+                DataFrame queries are reordered to match them (a mismatch
+                raises ``ValueError``), and the model, ``input_transform``,
+                and built-in extractors receive a DataFrame with those columns
+                instead of an array. Array queries are taken positionally.
+                Custom extractor callables always receive arrays.
+            y_train: Training labels, one per sample
+            k: Number of nearest neighbors for explanations (default: 5).
+                Must be a positive integer.
+            feature_names: Names of features (optional). Any sequence with one
+                name per feature, such as a list, array, or pandas Index.
+            class_names: Display names for classes (optional). Either a
+                ``{label: name}`` mapping or a sequence of names matched to the
+                sorted class labels, such as scikit-learn's ``target_names``.
             metric: Distance metric for feature, activation, blended, and
                 tree-leaf retrieval (default: 'euclidean'). Any metric accepted
                 by sklearn's ``NearestNeighbors`` and ``pairwise_distances``.
@@ -494,10 +718,22 @@ class CaseExplainer:
             algorithm: k-NN algorithm - 'auto', 'ball_tree', 'kd_tree', 'brute' (default: 'auto')
             scale_data: Whether to standardize features (recommended: True)
             class_weights: Optional weights for each class in correspondence computation
-                          e.g., {0: 1.0, 1: 2.0} to weight class 1 twice as much
-            metadata: Optional dict with metadata for each training sample
-                     e.g., {'sample_id': [...], 'source': [...], ...}
-            n_jobs: Number of parallel jobs for k-NN search (-1 = all CPUs)
+                          e.g., {0: 1.0, 1: 2.0} to weight class 1 twice as much.
+                          Pass ``"balanced"`` to derive inverse-frequency weights
+                          from ``y_train`` (``n_samples / (n_classes * count)``,
+                          the scikit-learn convention). Recommended for
+                          imbalanced data: without weights, a prediction of the
+                          majority class that disagrees with one or two
+                          minority-class neighbors still scores "high". The
+                          resolved weights are stored in ``class_weights``.
+            metadata: Optional per-sample metadata, as a dict of sequences
+                     (e.g., {'sample_id': [...], 'source': [...], ...}) or a
+                     DataFrame with one row per training sample. Values are
+                     copied and read by row position, so a pandas Series is
+                     matched to ``X_train`` by order and not by its index.
+            n_jobs: Number of parallel jobs for k-NN search (-1 = all CPUs).
+                Applies to batches; a single-sample query always runs on one
+                thread, where it is an order of magnitude faster.
             similarity: How neighbor similarity is computed. This is the single
                 knob for retrieval mode. Accepts:
 
@@ -522,13 +758,16 @@ class CaseExplainer:
                 validate them for your use case.
             distance_normalization: ``None`` (default) reports raw distances in
                 the retrieval space. ``"median_nn"`` divides every distance by
-                the median distance from a training case to its nearest
-                *distinct* training case in that space (duplicates are
-                excluded), so a distance of 1.0 means "as far as a typical
-                training case is from its closest distinct neighbor". This
-                makes correspondence comparable across retrieval spaces. The
-                divisor is stored as ``distance_scale_``. Neighbor selection
-                is unaffected.
+                the median nearest-neighbor distance among training cases in
+                that space, so a distance of 1.0 means "as far as a typical
+                training case is from its closest distinct neighbor". Training
+                cases that have an exact duplicate are left out of the
+                estimate, which uses a random sample of training cases. If
+                every sampled case has a duplicate, a warning is issued and
+                distances stay unnormalized. This puts distances from
+                different retrieval spaces on one scale. The divisor is
+                stored as ``distance_scale_``. Neighbor selection is
+                unaffected.
 
         Raises:
             TypeError: For the constructor parameters removed in 0.3.0
@@ -539,15 +778,23 @@ class CaseExplainer:
             raise removed_parameter_error(removed)
 
         # Convert inputs to numpy arrays
+        self._columns: Optional[List[Any]] = None
         if isinstance(X_train, pd.DataFrame):
             if feature_names is None:
                 feature_names = X_train.columns.tolist()
-            X_train = X_train.values
+            # Remember the columns so models and transforms fitted on a
+            # DataFrame keep receiving one (see _model_input).
+            self._columns = X_train.columns.tolist()
+            X_train = X_train.to_numpy()
         else:
             X_train = np.asarray(X_train)
+        if X_train.ndim != 2:
+            raise ValueError(
+                "X_train must be a dense 2-D array of shape (n_samples, "
+                f"n_features), got shape {X_train.shape}"
+            )
 
-        if isinstance(y_train, (pd.Series, list)):
-            y_train = np.asarray(y_train)
+        y_train = _as_label_array(y_train, "y_train")
 
         # Store original data
         self.X_train_original = X_train.copy()
@@ -561,16 +808,22 @@ class CaseExplainer:
             )
 
         self.n_samples, self.n_features = X_train.shape
-        self.k = k
-        self.feature_names = feature_names or [
-            f"feature_{i}" for i in range(self.n_features)
-        ]
-        self.class_names = class_names or {}
+        self.k = _validate_k(k)
+        if feature_names is None:
+            self.feature_names = [f"feature_{i}" for i in range(self.n_features)]
+        else:
+            self.feature_names = [_label_value(name) for name in feature_names]
+            if len(self.feature_names) != self.n_features:
+                raise ValueError(
+                    f"feature_names has {len(self.feature_names)} names for "
+                    f"{self.n_features} features"
+                )
+        self.class_names = _normalize_class_names(class_names, y_train)
         self.metric = metric
         self.algorithm = algorithm
         self.scale_data = scale_data
-        self.class_weights = class_weights or {}
-        self.metadata = metadata or {}
+        self.class_weights = _resolve_class_weights(class_weights, y_train)
+        self.metadata = _normalize_metadata(metadata, self.n_samples)
         self.n_jobs = n_jobs
         self.correspondence_thresholds = validate_thresholds(correspondence_thresholds)
         if distance_normalization not in DISTANCE_NORMALIZATIONS:
@@ -581,17 +834,9 @@ class CaseExplainer:
         self.distance_normalization = distance_normalization
 
         self.similarity: SimilarityStrategy = _resolve_similarity(similarity, model)
-        self._model = _strategy_model(self.similarity) or model
+        strategy_model = _strategy_model(self.similarity)
+        self._model = strategy_model if strategy_model is not None else model
         self.nn_index: Any = None
-
-        # Validate metadata
-        if self.metadata:
-            for key, values in self.metadata.items():
-                if len(values) != self.n_samples:
-                    raise ValueError(
-                        f"Metadata '{key}' has {len(values)} items, "
-                        f"expected {self.n_samples}"
-                    )
 
         # Scale data if requested
         if scale_data:
@@ -664,11 +909,13 @@ class CaseExplainer:
         raise TypeError(f"Unsupported similarity strategy {similarity!r}")
 
     def _estimate_distance_scale(self) -> float:
-        """Median distance from a training case to its nearest *distinct* case.
+        """Median nearest-neighbor distance among non-duplicated training cases.
 
         Distances below ``1e-6`` of the largest sampled distance are treated as
-        duplicates (exact repeats or floating-point noise) and excluded, so
-        heavily duplicated training sets still yield a meaningful scale.
+        duplicates (exact repeats or floating-point noise) and those cases are
+        left out, so a partly duplicated training set still yields a meaningful
+        scale. When every sampled case has a duplicate the scale falls back to
+        1.0 with a warning.
         """
         rng = np.random.RandomState(0)
         reference = np.asarray(self._strategy.reference_distances(self, rng), float)
@@ -737,13 +984,17 @@ class CaseExplainer:
         Returns:
             Explanation object with neighbors and correspondence
         """
-        sample: np.ndarray = np.asarray(test_sample)
+        sample: np.ndarray = _query_rows(test_sample, self._columns, "test_sample")
         if sample.ndim == 2 and sample.shape[0] == 1:
             sample = sample[0]
-        if sample.ndim != 1 or len(sample) != self.n_features:
+        if sample.ndim != 1:
             raise ValueError(
-                f"test_sample has {sample.shape[-1] if sample.ndim else 0} features, "
-                f"expected {self.n_features}"
+                f"test_sample must be a single sample, got shape {sample.shape}; "
+                "use explain_batch for several samples"
+            )
+        if len(sample) != self.n_features:
+            raise ValueError(
+                f"test_sample has {len(sample)} features, expected {self.n_features}"
             )
 
         X = sample[np.newaxis, :]
@@ -756,7 +1007,7 @@ class CaseExplainer:
             X,
             predicted,
             [_label_value(true_class)],
-            [test_index],
+            [_label_value(test_index)],
             k,
             return_provenance,
             distance_weighted,
@@ -779,7 +1030,9 @@ class CaseExplainer:
         in vectorized calls (one ``predict`` call and one k-NN query per batch,
         or one per predicted class for predicted-class activation weighting),
         so this is much faster than calling ``explain_instance`` in a loop.
-        Results are identical to the per-instance path.
+        Results match the per-instance path up to floating-point rounding.
+        In activation spaces, exact ties between duplicate training rows
+        can resolve to a different duplicate.
 
         Args:
             X_test: Test samples (n_samples, n_features)
@@ -793,10 +1046,9 @@ class CaseExplainer:
         Returns:
             List of Explanation objects
         """
-        if isinstance(X_test, pd.DataFrame):
-            X = X_test.values
-        else:
-            X = np.asarray(X_test)
+        X = _query_rows(X_test, self._columns, "X_test")
+        if X.ndim in (1, 2) and len(X) == 0:
+            X = X.reshape(0, self.n_features)  # an empty batch has no rows
         if X.ndim == 1:
             X = X[np.newaxis, :]
         if X.ndim != 2 or X.shape[1] != self.n_features:
@@ -809,22 +1061,26 @@ class CaseExplainer:
         if y_test is None:
             true_classes: List[Any] = [None] * n
         else:
-            y: np.ndarray = np.asarray(y_test)
+            y = _as_label_array(y_test, "y_test")
             if len(y) != n:
                 raise ValueError(
                     f"y_test has {len(y)} labels for {n} samples in X_test"
                 )
             true_classes = [_label_value(value) for value in y]
 
-        if predictions is None:
-            predicted = self._predict(X, model)
-        else:
-            preds: np.ndarray = np.asarray(predictions)
+        predicted: List[Any] = []
+        if predictions is not None:
+            preds = _as_label_array(predictions, "predictions")
             if len(preds) != n:
                 raise ValueError(
                     f"predictions has {len(preds)} labels for {n} samples in X_test"
                 )
             predicted = [_label_value(value) for value in preds]
+
+        if n == 0:
+            return []
+        if predictions is None:
+            predicted = self._predict(X, model)
 
         return self._explain_rows(
             X,
@@ -836,12 +1092,26 @@ class CaseExplainer:
             distance_weighted,
         )
 
+    def _model_input(self, X: np.ndarray) -> Any:
+        """Return ``X`` in the form the user's estimators were fitted on.
+
+        The index works on plain arrays, but a model or ``input_transform``
+        fitted on a DataFrame expects one back: scikit-learn pipelines that
+        select columns by name fail on arrays, and estimators that recorded
+        ``feature_names_in_`` warn on every call. When the explainer was built
+        from a DataFrame, rebuild one with the training columns before each
+        model call. Array-trained explainers pass arrays through unchanged.
+        """
+        if self._columns is None:
+            return X
+        return pd.DataFrame(X, columns=self._columns)
+
     def _predict(self, X: np.ndarray, model: Optional[Any]) -> List[Any]:
         """Predict class labels for ``X`` with the call-time or bound model."""
         prediction_model = model if model is not None else self._model
         if prediction_model is None:
             raise ValueError("Either predicted_class or model must be provided")
-        prediction_input: Any = X
+        prediction_input: Any = self._model_input(X)
         hidden = _hidden_strategy(self.similarity)
         if hidden is not None and hidden.input_transform is not None:
             transform = getattr(
@@ -851,6 +1121,7 @@ class CaseExplainer:
         raw_predictions = np.asarray(prediction_model.predict(prediction_input))
         if raw_predictions.ndim == 0:
             raw_predictions = raw_predictions[np.newaxis]
+        raw_predictions = _as_label_array(raw_predictions, "model.predict output")
         if len(raw_predictions) != len(X):
             raise ValueError(
                 f"model.predict returned {len(raw_predictions)} predictions for "
@@ -874,7 +1145,7 @@ class CaseExplainer:
         else:
             X_scaled = X.copy()
 
-        k_actual = k if k is not None else self.k
+        k_actual = self.k if k is None else _validate_k(k)
         k_actual = min(k_actual, self.n_samples)  # Handle case where k > n_samples
 
         distances_list, indices_list = self._strategy.neighbors_batch(

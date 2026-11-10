@@ -24,6 +24,9 @@ python -m http.server 8000 --directory _build/html
   - `explainer.rst` - CaseExplainer class documentation
   - `explanation.rst` - Explanation and Neighbor classes
   - `metrics.rst` - Metrics and correspondence functions
+- `calibration.rst` - Interpreting and calibrating correspondence
+- `data_exposure.rst` - What explanations disclose about training data
+- `migration.rst` - Migrating to 0.3.0
 - `citation.rst` - Citation information
 - `license.rst` - License information
 

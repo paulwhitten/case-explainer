@@ -3,7 +3,7 @@ Metrics
 
 Distance and correspondence metrics for case-based explanations.
 
-.. currentmodule:: case_explainer.metrics
+.. module:: case_explainer.metrics
 
 Functions
 ---------
@@ -49,7 +49,7 @@ For a test sample with predicted class ``c_pred``, given k nearest neighbors:
 
 .. math::
 
-   w_i = \\frac{1}{(d_i + 1)^3}
+   w_i = \frac{1}{(d_i + 1)^3}
 
 where :math:`d_i` is the distance to neighbor i.
 
@@ -57,13 +57,13 @@ The weight for each class c is:
 
 .. math::
 
-   W(c) = \\sum_{i: y_i = c} w_i
+   W(c) = \sum_{i: y_i = c} w_i
 
 The correspondence score is:
 
 .. math::
 
-   \\text{Correspondence} = \\frac{W(c_{pred})}{\\sum_{c} W(c)}
+   \text{Correspondence} = \frac{W(c_{pred})}{\sum_{c} W(c)}
 
 Interpretation
 """"""""""""""
@@ -85,13 +85,22 @@ Pass ``thresholds=(medium, high)`` to ``compute_correspondence`` or
 ``correspondence_thresholds=(medium, high)`` to ``CaseExplainer`` to use cut
 points validated for your domain.
 
+On the reference domains the default cut points are well ordered: a ``high``
+label is right about 99% of the time and a ``low`` label about half the time
+or less. A wrong prediction whose neighbors all share its class still scores
+1.0, so ``high`` means "consistent with the training data" and not "verified".
+:doc:`/calibration` gives the per-label figures and a recipe for checking them
+on your own data.
+
 Distance scale and retrieval space
 """"""""""""""""""""""""""""""""""
 
 The ``+1`` offset in the weight assumes distances on roughly the standardized
-feature scale. Hidden-activation distances and forest proximities are much
-smaller, so the weighting flattens toward plain voting in those spaces and raw
-correspondence values are not comparable across retrieval spaces. Construct the
+feature scale. Distances in other spaces are on different scales: forest
+proximities lie in ``[0, 1]``, where the weighting flattens toward plain
+voting, and hidden-activation distances can be larger or smaller than feature
+distances depending on the dataset. Raw correspondence values are therefore
+not comparable across retrieval spaces. Construct the
 explainer with ``distance_normalization="median_nn"`` to divide distances by
 the median distance from a training case to its nearest distinct training case
 in the active space before weighting.
@@ -192,23 +201,44 @@ For imbalanced datasets, you can adjust correspondence using class weights:
    # Without class weights
    neighbors = [(0, 0.1, 1), (1, 0.2, 1), (2, 0.3, 0), (3, 0.4, 0), (4, 0.5, 0)]
 
-   corr, _ = compute_correspondence(neighbors, predicted_class=1)
-   print(f"No weights: {corr:.2%}")
+   corr, label = compute_correspondence(neighbors, predicted_class=1)
+   print(f"No weights: {corr:.2%} ({label})")       # 54.38% (low)
 
    # With class weights (weight minority class 1 more)
-   corr_weighted, _ = compute_correspondence(
+   corr_weighted, label = compute_correspondence(
        neighbors, predicted_class=1, class_weights={0: 1.0, 1: 3.0}
    )
-   print(f"With weights: {corr_weighted:.2%}")  # Higher
+   print(f"With weights: {corr_weighted:.2%} ({label})")  # 78.15% (medium)
+
+Weights matter most when one class is rare. Here the model predicts the common
+class 0, but one of the five neighbors belongs to rare class 1:
+
+.. code-block:: python
+
+   neighbors = [(0, 0.2, 0), (1, 0.3, 0), (2, 0.3, 1), (3, 0.4, 0), (4, 0.5, 0)]
+
+   corr, label = compute_correspondence(neighbors, predicted_class=0)
+   print(f"{corr:.2%} ({label})")   # 78.83% (medium)
+
+   # Inverse-frequency weights for a class that is about 0.2% of the data
+   corr, label = compute_correspondence(
+       neighbors, predicted_class=0, class_weights={0: 0.5, 1: 290.0}
+   )
+   print(f"{corr:.2%} ({label})")   # 0.64% (low)
+
+``CaseExplainer(class_weights="balanced")`` computes these inverse-frequency
+weights from the training labels. See :doc:`/calibration` for their measured
+effect on the reference domains.
 
 Notes
 -----
 
 **Performance**
 
-* Correspondence computation is O(k) where k is the number of neighbors
-* Distance computation is O(d) where d is the number of features
-* Both operations are highly vectorized using NumPy for efficiency
+* Correspondence computation is O(k) where k is the number of neighbors; it is
+  a plain Python loop over the k neighbors
+* Distance computation is O(d) where d is the number of features and uses
+  SciPy's compiled routines
 
 **Numerical Stability**
 
@@ -219,5 +249,5 @@ Notes
 See Also
 --------
 
-* :class:`CaseExplainer`: Uses these metrics for generating explanations
-* :class:`Explanation`: Contains computed correspondence scores
+* :class:`~case_explainer.CaseExplainer`: Uses these metrics for generating explanations
+* :class:`~case_explainer.explanation.Explanation`: Contains computed correspondence scores

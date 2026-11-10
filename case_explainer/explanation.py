@@ -60,6 +60,7 @@ class Explanation:
             true_class: True class label (if available)
             correspondence: Correspondence score [0, 1]
             correspondence_interpretation: "high", "medium", or "low"
+                (``"undefined"`` when no neighbors were retrieved)
             feature_names: Names of features (optional)
             class_names: Mapping from class labels to names (optional)
             retrieval_space: Which space the neighbors were retrieved in
@@ -70,9 +71,10 @@ class Explanation:
             distance_metric: Name of the distance used within the retrieval
                 space (for example ``"euclidean"`` or ``"shared_leaf_fraction"``).
             distance_scale: Divisor applied to raw distances before they were
-                stored on the neighbors. ``1.0`` means raw distances; a larger
-                value means distances were normalized by the explainer
-                (``raw_distance = neighbor.distance * distance_scale``).
+                stored on the neighbors. ``1.0`` means raw distances; any other
+                value (it may be smaller or larger than 1) means the explainer
+                normalized them, with
+                ``raw_distance = neighbor.distance * distance_scale``.
         """
         self.test_sample = test_sample
         self.test_index = test_index
@@ -84,15 +86,18 @@ class Explanation:
         self.retrieval_space = retrieval_space
         self.distance_metric = distance_metric
         self.distance_scale = float(distance_scale)
-        self.feature_names = feature_names or [
-            f"feature_{i}" for i in range(len(test_sample))
-        ]
-        # Convert class_names list to dict if needed
-        self.class_names: Dict[Any, str]
-        if isinstance(class_names, list):
-            self.class_names = {i: name for i, name in enumerate(class_names)}
+        if feature_names is None:
+            self.feature_names = [f"feature_{i}" for i in range(len(test_sample))]
         else:
-            self.class_names = class_names or {}
+            self.feature_names = list(feature_names)
+        # Convert a class_names sequence to a dict if needed
+        self.class_names: Dict[Any, str]
+        if class_names is None:
+            self.class_names = {}
+        elif isinstance(class_names, dict):
+            self.class_names = class_names
+        else:
+            self.class_names = {i: name for i, name in enumerate(class_names)}
 
     def get_predicted_class_name(self) -> str:
         """Get the predicted class name."""
@@ -203,21 +208,28 @@ class Explanation:
             plot_type: 'bar' (default), 'radar', or 'parallel'. Radar and
                 parallel coordinates are not implemented yet and fall back
                 to the bar plot.
-            highlight_differences: Whether to highlight feature differences
-            show_distances: Whether to show distance values
-            save_path: Path to save figure (if provided)
+            highlight_differences: Reserved; currently has no effect
+            show_distances: Whether to show each neighbor's distance in the
+                legend
+            save_path: Path to save the figure. When given, the figure is
+                written to this file and closed instead of being shown.
             figsize: Figure size
         """
         if plot_type == "bar":
-            self._plot_bar(figsize, save_path)
+            self._plot_bar(figsize, save_path, show_distances)
         elif plot_type == "radar":
-            self._plot_radar(figsize, save_path)
+            self._plot_radar(figsize, save_path, show_distances)
         elif plot_type == "parallel":
-            self._plot_parallel(figsize, save_path)
+            self._plot_parallel(figsize, save_path, show_distances)
         else:
             raise ValueError(f"Unknown plot type: {plot_type}")
 
-    def _plot_bar(self, figsize: Tuple[int, int], save_path: Optional[str]) -> None:
+    def _plot_bar(
+        self,
+        figsize: Tuple[int, int],
+        save_path: Optional[str],
+        show_distances: bool = True,
+    ) -> None:
         """Create bar plot comparing features."""
         n_features = len(self.test_sample)
         n_neighbors = len(self.neighbors)
@@ -244,11 +256,14 @@ class Explanation:
         for i, neighbor in enumerate(self.neighbors):
             offset = width * (i + 1)
             match_str = "*" if neighbor.label == self.predicted_class else ""
+            legend_label = f"Neighbor {i+1} {match_str}".rstrip()
+            if show_distances:
+                legend_label += f" (d={neighbor.distance:.3g})"
             ax.bar(
                 x + offset,
                 neighbor.features,
                 width,
-                label=f"Neighbor {i+1} {match_str}",
+                label=legend_label,
                 color=colors[i],
                 alpha=0.6,
             )
@@ -267,20 +282,29 @@ class Explanation:
 
         if save_path:
             plt.savefig(save_path, dpi=150, bbox_inches="tight")
+            plt.close(fig)
         else:
             plt.show()
 
-    def _plot_radar(self, figsize: Tuple[int, int], save_path: Optional[str]) -> None:
+    def _plot_radar(
+        self,
+        figsize: Tuple[int, int],
+        save_path: Optional[str],
+        show_distances: bool = True,
+    ) -> None:
         """Create radar plot (not implemented yet - use bar for now)."""
         print("Radar plot not yet implemented, using bar plot instead.")
-        self._plot_bar(figsize, save_path)
+        self._plot_bar(figsize, save_path, show_distances)
 
     def _plot_parallel(
-        self, figsize: Tuple[int, int], save_path: Optional[str]
+        self,
+        figsize: Tuple[int, int],
+        save_path: Optional[str],
+        show_distances: bool = True,
     ) -> None:
         """Create parallel coordinates plot (not implemented yet - use bar for now)."""
         print("Parallel coordinates plot not yet implemented, using bar plot instead.")
-        self._plot_bar(figsize, save_path)
+        self._plot_bar(figsize, save_path, show_distances)
 
     def __repr__(self) -> str:
         return (
